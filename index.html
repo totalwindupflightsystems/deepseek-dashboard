@@ -4,11 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DeepSeek Usage Dashboard</title>
+<script>(function(){try{var t=localStorage.getItem('ds-dash-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
 <style>
-:root {
+|:root {
   --bg: #0d1117; --bg-card: #161b22; --bg-card-hover: #1c2333;
   --bg-input: #0d1117; --border: #30363d; --border-accent: #4c6ef5;
   --text: #e6edf3; --text-dim: #8b949e; --text-bright: #f0f6fc;
@@ -18,6 +19,13 @@
   --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
   --radius: 8px; --radius-sm: 4px;
 }
+:root[data-theme="light"] {
+  --bg: #ffffff; --bg-card: #f6f8fa; --bg-card-hover: #eef1f5;
+  --bg-input: #ffffff; --border: #d0d7de; --border-accent: #4c6ef5;
+  --text: #24292f; --text-dim: #656d76; --text-bright: #1f2328;
+  --accent: #4c6ef5; --accent-glow: rgba(76,110,245,0.10);
+  --green: #1a7f37; --orange: #9a6700; --red: #cf222e; --purple: #8250df; --cyan: #096b9c;
+}|
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.5; min-height: 100vh; }
 .container { max-width: 1440px; margin: 0 auto; padding: 24px; }
@@ -87,6 +95,10 @@ header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-bright); lett
 .chart-dl-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: var(--radius-sm); padding: 2px 6px; cursor: pointer; font-size: 14px; line-height: 1; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
 .chart-dl-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
 .chart-dl-btn:active { transform: scale(0.95); }
+
+/* Theme toggle button in header */
+#themeToggle { font-size: 1.1rem; line-height: 1; padding: 5px 8px; }
+
 .chart-card .chart-wrap { position: relative; width: 100%; }
 .chart-card .chart-wrap canvas { width: 100% !important; }
 
@@ -169,6 +181,7 @@ tr:hover td { background: var(--bg-card-hover); }
       <button class="btn-sm danger" id="wsDeleteBtn" title="Delete workspace">&#128465;</button>
       <button class="btn-sm" id="wsClearBtn" title="Clear all data">Clear</button>
     </div>
+    <button class="btn-sm" id="themeToggle" title="Toggle theme">&#9788;</button>
     <span class="storage-indicator" id="storageInd"><span class="dot"></span><span id="storageLabel">ready</span></span>
   </header>
 
@@ -1232,8 +1245,27 @@ document.getElementById('exportAllBtn').addEventListener('click', () => {
   toast('Full raw data exported');
 });
 
+// -- Theme Toggle --
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.innerHTML = theme === 'dark' ? '&#9788;' : '&#9790;';
+  try { localStorage.setItem('ds-dash-theme', theme); } catch(e) {}
+}
+function loadTheme() {
+  let theme = 'dark';
+  try { const s = localStorage.getItem('ds-dash-theme'); if (s === 'light' || s === 'dark') theme = s; } catch(e) {}
+  setTheme(theme);
+}
+
+document.getElementById('themeToggle')?.addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  setTheme(cur === 'dark' ? 'light' : 'dark');
+});
+
 // -- Init --
 async function init() {
+  loadTheme();
   try {
     SQL = await initSqlJs({ locateFile: f => `https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/${f}` });
     const loaded = await loadDB();
