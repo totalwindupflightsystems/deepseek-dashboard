@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepSeek Usage Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
+<style>
+:root {
+  --bg: #0d1117; --bg-card: #161b22; --bg-card-hover: #1c2333;
+  --bg-input: #0d1117; --border: #30363d; --border-accent: #4c6ef5;
+  --text: #e6edf3; --text-dim: #8b949e; --text-bright: #f0f6fc;
+  --accent: #4c6ef5; --accent-glow: rgba(76,110,245,0.15);
+  --green: #3fb950; --orange: #d2991d; --red: #f85149; --purple: #a371f7; --cyan: #39d2c0;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+  --radius: 8px; --radius-sm: 4px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.5; min-height: 100vh; }
+.container { max-width: 1440px; margin: 0 auto; padding: 24px; }
+
+/* Header */
+header { margin-bottom: 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-bright); letter-spacing: -0.5px; }
+.badge { display: inline-block; background: var(--accent-glow); color: var(--accent); font-size: 0.7rem; padding: 2px 8px; border-radius: 9999px; font-weight: 600; white-space: nowrap; }
+.spacer { flex: 1; }
+
+/* Workspace Selector */
+.ws-bar { display: flex; align-items: center; gap: 8px; }
+.ws-bar select { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; font-size: 0.85rem; font-family: var(--font); max-width: 200px; }
+.ws-bar select:focus { outline: none; border-color: var(--accent); }
+.btn-sm { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 10px; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; font-family: var(--font); white-space: nowrap; }
+.btn-sm:hover { border-color: var(--accent); background: var(--bg-card-hover); }
+.btn-sm.danger { color: var(--red); border-color: var(--red); }
+.btn-sm.danger:hover { background: rgba(248,81,73,0.1); }
+.btn-sm.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 50; align-items: center; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; max-width: 400px; width: 90%; }
+.modal h3 { margin-bottom: 12px; font-size: 0.95rem; }
+.modal input { width: 100%; background: var(--bg-input); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 0.9rem; margin-bottom: 12px; font-family: var(--font); }
+.modal input:focus { outline: none; border-color: var(--accent); }
+.modal .btn-row { display: flex; gap: 8px; justify-content: flex-end; }
+.modal .btn-row button { padding: 6px 16px; }
+
+/* Drop Zone */
+.drop-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 32px 24px; text-align: center; transition: all 0.2s; cursor: pointer; margin-bottom: 20px; background: var(--bg-card); }
+.drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: var(--accent-glow); }
+.drop-zone svg { width: 40px; height: 40px; margin-bottom: 8px; color: var(--text-dim); }
+.drop-zone .drop-title { font-weight: 600; color: var(--text-bright); margin-bottom: 2px; }
+.drop-zone .drop-sub { font-size: 0.8rem; color: var(--text-dim); }
+.drop-zone.processing { border-color: var(--orange); background: rgba(210,153,29,0.05); pointer-events: none; }
+
+/* No workspace state */
+.no-ws { text-align: center; padding: 48px 24px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; }
+.no-ws .no-ws-title { font-size: 1.1rem; font-weight: 600; color: var(--text-bright); margin-bottom: 4px; }
+.no-ws .no-ws-sub { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 16px; }
+
+/* Controls Row */
+.controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; }
+.controls select, .controls input { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; font-size: 0.85rem; font-family: var(--font); }
+.controls select:focus, .controls input:focus { outline: none; border-color: var(--accent); }
+.controls label { font-size: 0.8rem; color: var(--text-dim); }
+.btn { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 14px; font-size: 0.85rem; cursor: pointer; transition: all 0.15s; font-family: var(--font); white-space: nowrap; }
+.btn:hover { border-color: var(--accent); background: var(--bg-card-hover); }
+.btn-accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* KPI Cards */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.kpi-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; }
+.kpi-card .label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+.kpi-card .value { font-size: 1.5rem; font-weight: 700; color: var(--text-bright); font-variant-numeric: tabular-nums; }
+.kpi-card .sub { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; }
+
+/* Chart Grid */
+.chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 20px; }
+.chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+.chart-card.wide { grid-column: 1 / -1; }
+.chart-card h3 { font-size: 0.85rem; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+.chart-card .chart-wrap { position: relative; width: 100%; }
+.chart-card .chart-wrap canvas { width: 100% !important; }
+
+/* Top Spenders List */
+.spend-list { list-style: none; }
+.spend-list li { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+.spend-list li:last-child { border-bottom: none; }
+.spend-list .rank { color: var(--text-dim); width: 20px; }
+.spend-list .date { flex: 1; }
+.spend-list .amount { font-weight: 600; color: var(--text-bright); font-variant-numeric: tabular-nums; }
+
+/* Upload History */
+.history-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 20px; max-height: 200px; overflow-y: auto; }
+.history-card h3 { font-size: 0.8rem; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.history-item { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 0.78rem; border-bottom: 1px solid rgba(48,54,61,0.5); }
+.history-item:last-child { border-bottom: none; }
+.history-item .hi-name { color: var(--text); }
+.history-item .hi-meta { color: var(--text-dim); font-size: 0.72rem; }
+
+/* Raw Data Table */
+.data-section { margin-top: 20px; }
+.data-section h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.data-section .row-count { font-size: 0.72rem; color: var(--text-dim); font-weight: 400; }
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); max-height: 400px; overflow-y: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.78rem; font-family: var(--mono); }
+thead { position: sticky; top: 0; z-index: 1; }
+th { background: var(--bg-card); color: var(--text-dim); font-weight: 600; text-align: left; padding: 7px 10px; border-bottom: 2px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
+th:hover { color: var(--text); }
+td { padding: 5px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+tr:hover td { background: var(--bg-card-hover); }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Toast */
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 18px; font-size: 0.82rem; box-shadow: 0 4px 24px rgba(0,0,0,0.3); opacity: 0; transform: translateY(10px); transition: all 0.3s; pointer-events: none; z-index: 100; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.warn { border-color: var(--orange); }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container { padding: 10px; }
+  .chart-grid { grid-template-columns: 1fr; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  header { flex-direction: column; align-items: flex-start; }
+}
+
+/* Storage indicator */
+.storage-indicator { font-size: 0.7rem; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
+.storage-indicator .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.storage-indicator .dot.saving { background: var(--orange); }
+.storage-indicator .dot.error { background: var(--red); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header with Workspace -->
+  <header>
+    <h1>DeepSeek Dashboard <span class="badge">Client-Side</span></h1>
+    <span class="spacer"></span>
+    <div class="ws-bar" id="wsBar">
+      <select id="wsSelect"><option value="">No Workspace</option></select>
+      <button class="btn-sm accent" id="wsNewBtn">+ New</button>
+      <button class="btn-sm" id="wsRenameBtn" title="Rename">✏️</button>
+      <button class="btn-sm danger" id="wsDeleteBtn" title="Delete workspace">🗑</button>
+      <button class="btn-sm" id="wsClearBtn" title="Clear all data">Clear</button>
+    </div>
+    <span class="storage-indicator" id="storageInd"><span class="dot"></span><span id="storageLabel">ready</span></span>
+  </header>
+
+  <!-- No Workspace State -->
+  <div class="no-ws" id="noWs">
+    <div class="no-ws-title">Create a Workspace</div>
+    <div class="no-ws-sub">Workspaces keep your DeepSeek accounts separate. Upload data, switch between them anytime.</div>
+    <button class="btn btn-accent" id="noWsCreateBtn">+ Create First Workspace</button>
+  </div>
+
+  <!-- Active Content -->
+  <div id="activeContent" style="display:none">
+
+    <!-- Drop Zone -->
+    <div class="drop-zone" id="dropZone">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0L8 8m4-4l4 4M4 20h16"/></svg>
+      <div class="drop-title">Drop DeepSeek usage ZIP here</div>
+      <div class="drop-sub">or click to select — manages diffs automatically</div>
+    </div>
+
+    <!-- Upload History -->
+    <div class="history-card" id="historyCard" style="display:none">
+      <h3>Upload History</h3>
+      <div id="historyList"></div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls" id="controls">
+      <label>Period:</label>
+      <select id="periodSelect"><option value="all">All Time</option></select>
+      <label>Model:</label>
+      <select id="modelSelect"><option value="all">All Models</option></select>
+      <label>Key:</label>
+      <select id="keySelect"><option value="all">All Keys</option></select>
+      <button class="btn btn-accent" id="exportBtn">Export CSV</button>
+      <button class="btn" id="exportAllBtn">Export All Raw</button>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <!-- Charts -->
+    <div class="chart-grid" id="chartGrid">
+      <div class="chart-card wide"><h3>Token Usage Over Time</h3><div class="chart-wrap"><canvas id="cTokens"></canvas></div></div>
+      <div class="chart-card"><h3>Daily Spend by Model</h3><div class="chart-wrap"><canvas id="cSpend"></canvas></div></div>
+      <div class="chart-card"><h3>Per-Model Breakdown</h3><div class="chart-wrap"><canvas id="cModelPie"></canvas></div></div>
+      <div class="chart-card"><h3>Prompt vs Completion</h3><div class="chart-wrap"><canvas id="cRatio"></canvas></div></div>
+      <div class="chart-card"><h3>Top 10 Spend Days</h3><ul class="spend-list" id="topSpend"></ul></div>
+      <div class="chart-card"><h3>Per-Key Spend</h3><div class="chart-wrap"><canvas id="cKey"></canvas></div></div>
+    </div>
+
+    <!-- Raw Data -->
+    <div class="data-section" id="dataSection">
+      <h3>Raw Data <span class="row-count" id="rowCount"></span></h3>
+      <div class="table-wrap"><table id="dataTable"><thead><tr></tr></thead><tbody></tbody></table></div>
+    </div>
+
+  </div><!-- /activeContent -->
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Modal for new workspace / rename / confirm -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h3 id="modalTitle">Create Workspace</h3>
+      <input type="text" id="modalInput" placeholder="Workspace name…" autocomplete="off">
+      <div class="btn-row">
+        <button class="btn" id="modalCancel">Cancel</button>
+        <button class="btn btn-accent" id="modalConfirm">Create</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Global State ──
+let SQL = null;
+let db = null;
+let activeWsId = null;
+let charts = {};
+const IDB_NAME = 'deepseek-dashboard';
+const IDB_STORE = 'sqlite-db';
+const DB_KEY = 'main';
+
+// ── Utilities ──
+function fmtUSD(n) { return '$' + Number(n).toFixed(2); }
+function fmtTok(n) {
+  n = Number(n);
+  if (n >= 1e9) return (n/1e9).toFixed(1)+'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
+  return Math.round(n).toLocaleString();
+}
+function fmtNum(n) { return Math.round(Number(n)).toLocaleString(); }
+function fmtDate(d) { return new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function toast(msg, warn) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'toast show' + (warn ? ' warn' : '');
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── IndexedDB Persistence ──
+function idb() { return new Promise((resolve, reject) => {
+  const req = indexedDB.open(IDB_NAME, 1);
+  req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+  req.onsuccess = () => resolve(req.result);
+  req.onerror = () => reject(req.error);
+});}
+
+async function saveDB() {
+  if (!db) return;
+  setStorageStatus('saving');
+  const data = db.export();
+  const store = (await idb()).transaction(IDB_STORE,'readwrite').objectStore(IDB_STORE);
+  await new Promise((resolve, reject) => {
+    const req = store.put(data, DB_KEY);
+    req.onsuccess = resolve; req.onerror = reject;
+  });
+  setStorageStatus('saved');
+}
+
+async function loadDB() {
+  try {
+    const store = (await idb()).transaction(IDB_STORE,'readonly').objectStore(IDB_STORE);
+    const data = await new Promise((resolve, reject) => {
+      const req = store.get(DB_KEY);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    if (data) {
+      db = new SQL.Database(new Uint8Array(data));
+      return true;
+    }
+  } catch(e) { console.warn('IndexedDB load failed:', e); }
+  db = new SQL.Database();
+  return false;
+}
+
+function setStorageStatus(s) {
+  const dot = document.querySelector('#storageInd .dot');
+  const label = document.getElementById('storageLabel');
+  dot.className = 'dot';
+  if (s === 'saving') { dot.classList.add('saving'); label.textContent = 'saving…'; }
+  else if (s === 'saved') { label.textContent = 'saved'; }
+  else if (s === 'error') { dot.classList.add('error'); label.textContent = 'error'; }
+  else { label.textContent = 'ready'; }
+}
+
+// ── Schema ──
+function initSchema() {
+  db.run(`CREATE TABLE IF NOT EXISTS workspaces (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL, last_upload_at TEXT)`);
+  db.run(`CREATE TABLE IF NOT EXISTS token_usage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, workspace_id TEXT NOT NULL,
+    utc_date TEXT NOT NULL, model TEXT NOT NULL, api_key_name TEXT,
+    type TEXT NOT NULL, price REAL, amount REAL, upload_id TEXT NOT NULL)`);
+  db.run(`CREATE TABLE IF NOT EXISTS cost_daily (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, workspace_id TEXT NOT NULL,
+    utc_date TEXT NOT NULL, model TEXT NOT NULL, cost REAL NOT NULL,
+    currency TEXT DEFAULT 'USD', upload_id TEXT NOT NULL)`);
+  db.run(`CREATE TABLE IF NOT EXISTS uploads (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, filename TEXT,
+    uploaded_at TEXT NOT NULL DEFAULT (datetime('now')),
+    mode TEXT NOT NULL DEFAULT 'insert', rows_replaced INTEGER DEFAULT 0,
+    rows_added INTEGER DEFAULT 0, date_min TEXT, date_max TEXT)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_token_ws ON token_usage(workspace_id, utc_date)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_cost_ws ON cost_daily(workspace_id, utc_date)`);
+}
+
+// ── Workspace Management ──
+function getWorkspaces() {
+  const rows = [];
+  db.each('SELECT * FROM workspaces ORDER BY created_at DESC', {}, (r) => rows.push(r));
+  return rows;
+}
+
+function createWorkspace(name) {
+  const id = genId();
+  db.run('INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)', [id, name, new Date().toISOString()]);
+  saveDB();
+  return id;
+}
+
+function renameWorkspace(id, name) {
+  db.run('UPDATE workspaces SET name = ? WHERE id = ?', [name, id]);
+  saveDB();
+}
+
+function deleteWorkspace(id) {
+  db.run('DELETE FROM token_usage WHERE workspace_id = ?', [id]);
+  db.run('DELETE FROM cost_daily WHERE workspace_id = ?', [id]);
+  db.run('DELETE FROM uploads WHERE workspace_id = ?', [id]);
+  db.run('DELETE FROM workspaces WHERE id = ?', [id]);
+  saveDB();
+}
+
+function clearWorkspaceData(id) {
+  db.run('DELETE FROM token_usage WHERE workspace_id = ?', [id]);
+  db.run('DELETE FROM cost_daily WHERE workspace_id = ?', [id]);
+  db.run('DELETE FROM uploads WHERE workspace_id = ?', [id]);
+  db.run('UPDATE workspaces SET last_upload_at = NULL WHERE id = ?', [id]);
+  saveDB();
+}
+
+// ── CSV Parser ──
+function parseCSV(text) {
+  text = text.replace(/^\uFEFF/, '').trim();
+  const lines = text.split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim());
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = []; let cur = '', inQ = false;
+    for (const ch of lines[i]) {
+      if (ch === '"') { inQ = !inQ; continue; }
+      if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ''; continue; }
+      cur += ch;
+    }
+    vals.push(cur.trim());
+    if (vals.length !== headers.length) continue;
+    const row = {}; headers.forEach((h,j) => row[h] = vals[j]); rows.push(row);
+  }
+  return rows;
+}
+
+// ── Upload Processing ──
+async function handleUpload(file) {
+  if (!file.name.endsWith('.zip')) { toast('Please drop a .zip file', true); return; }
+  if (!activeWsId) { toast('Create a workspace first', true); return; }
+
+  const dz = document.getElementById('dropZone');
+  dz.classList.add('processing');
+  dz.querySelector('.drop-title').textContent = 'Processing…';
+
+  try {
+    const zip = await JSZip.loadAsync(file);
+    let amountRows = [], costRows = [];
+
+    for (const [name, entry] of Object.entries(zip.files)) {
+      if (entry.dir) continue;
+      const text = await entry.async('text');
+      if (name.startsWith('amount-')) amountRows = amountRows.concat(parseCSV(text));
+      else if (name.startsWith('cost-')) costRows = costRows.concat(parseCSV(text));
+      else if (name.endsWith('.csv')) {
+        if (text.includes('input_cache')) amountRows = amountRows.concat(parseCSV(text));
+        else if (text.includes('wallet_type')) costRows = costRows.concat(parseCSV(text));
+      }
+    }
+
+    if (!amountRows.length && !costRows.length) throw new Error('No CSV data found in ZIP');
+
+    // Detect date range
+    const dates = new Set();
+    amountRows.forEach(r => { if (r.utc_date) dates.add(r.utc_date); });
+    costRows.forEach(r => { if (r.utc_date) dates.add(r.utc_date); });
+    const dateArr = [...dates].sort();
+    const dateMin = dateArr[0], dateMax = dateArr[dateArr.length-1];
+
+    // Diff detection: check if we already have data for this date range
+    const existing = db.exec(`SELECT COUNT(*) as cnt FROM uploads WHERE workspace_id = ? AND date_min = ? AND date_max = ?`, [activeWsId, dateMin, dateMax]);
+    const hasExisting = existing.length > 0 && existing[0].values[0][0] > 0;
+
+    const uploadId = genId();
+    const mode = hasExisting ? 'replace' : 'insert';
+    let rowsReplaced = 0;
+
+    if (hasExisting) {
+      // Delete old data for this date range
+      const del1 = db.exec(`DELETE FROM token_usage WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`, [activeWsId, dateMin, dateMax]);
+      const del2 = db.exec(`DELETE FROM cost_daily WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`, [activeWsId, dateMin, dateMax]);
+      rowsReplaced = (del1.length && del1[0].values.length ? del1[0].values[0][0] : 0);
+      // Also remove old upload records for this range
+      db.run('DELETE FROM uploads WHERE workspace_id = ? AND date_min = ? AND date_max = ?', [activeWsId, dateMin, dateMax]);
+    }
+
+    // Insert token rows
+    const stmtTok = db.prepare('INSERT INTO token_usage (workspace_id, utc_date, model, api_key_name, type, price, amount, upload_id) VALUES (?,?,?,?,?,?,?,?)');
+    let tokenCount = 0;
+    for (const r of amountRows) {
+      if (!r.utc_date || !r.model || !r.type || r.type === 'type') continue;
+      stmtTok.run([activeWsId, r.utc_date, r.model, r.api_key_name||'', r.type,
+                   parseFloat(r.price)||0, parseFloat(r.amount)||0, uploadId]);
+      tokenCount++;
+    }
+    stmtTok.free();
+
+    // Insert cost rows
+    const stmtCost = db.prepare('INSERT INTO cost_daily (workspace_id, utc_date, model, cost, currency, upload_id) VALUES (?,?,?,?,?,?)');
+    let costCount = 0;
+    for (const r of costRows) {
+      if (!r.utc_date || !r.model) continue;
+      stmtCost.run([activeWsId, r.utc_date, r.model, parseFloat(r.cost)||0, r.currency||'USD', uploadId]);
+      costCount++;
+    }
+    stmtCost.free();
+
+    // Record upload
+    db.run('INSERT INTO uploads (id, workspace_id, filename, uploaded_at, mode, rows_replaced, rows_added, date_min, date_max) VALUES (?,?,?,?,?,?,?,?,?)',
+      [uploadId, activeWsId, file.name, new Date().toISOString(), mode, rowsReplaced, tokenCount+costCount, dateMin, dateMax]);
+
+    // Update workspace
+    db.run('UPDATE workspaces SET last_upload_at = ? WHERE id = ?', [new Date().toISOString(), activeWsId]);
+
+    await saveDB();
+    toast(`${mode === 'replace' ? 'Updated' : 'Added'} ${fmtNum(tokenCount)} rows · ${dateMin} → ${dateMax}`);
+  } catch(e) {
+    toast('Error: ' + e.message, true);
+    console.error(e);
+  }
+
+  dz.classList.remove('processing');
+  dz.querySelector('.drop-title').textContent = 'Drop DeepSeek usage ZIP here';
+  await refreshAll();
+}
+
+// ── Data Querying ──
+function queryPeriod(period) {
+  if (period === 'all') return ['1','1'];
+  if (period === '7d') {
+    const d = new Date(); d.setDate(d.getDate()-7);
+    return [d.toISOString().slice(0,10), new Date().toISOString().slice(0,10)];
+  }
+  if (period === '30d') {
+    const d = new Date(); d.setDate(d.getDate()-30);
+    return [d.toISOString().slice(0,10), new Date().toISOString().slice(0,10)];
+  }
+  if (period.startsWith('month-')) {
+    const [y,m] = period.replace('month-','').split('-');
+    const start = `${y}-${m}-01`;
+    const end = `${y}-${String(m).padStart(2,'0')}-${new Date(Number(y),Number(m),0).getDate()}`;
+    return [start, end];
+  }
+  return ['1','1'];
+}
+
+function getDailyData(period, model) {
+  const [start, end] = queryPeriod(period);
+  let where = 'workspace_id = ? AND utc_date >= ? AND utc_date <= ?';
+  const params = [activeWsId, start, end];
+  if (model && model !== 'all') { where += ' AND model = ?'; params.push(model); }
+
+  // Aggregate token_usage
+  const days = {};
+  const tuRows = db.exec(`SELECT utc_date, model, type, SUM(amount) as total_amount, SUM(price*amount) as total_cost FROM token_usage WHERE ${where} GROUP BY utc_date, model, type`, params);
+  if (tuRows.length) {
+    for (const row of tuRows[0].values) {
+      const [date, mdl, typ, amount, cost] = row;
+      if (!days[date]) days[date] = {date, cost_tokens:0, cost_csv:0, total_tokens:0, cache_hit:0, cache_miss:0,
+                                      output:0, prompt:0, requests:0, byModel:{}};
+      days[date].cost_tokens += Number(cost||0);
+      days[date].total_tokens += Number(amount||0);
+      if (typ === 'input_cache_hit_tokens') days[date].cache_hit += Number(amount||0);
+      if (typ === 'input_cache_miss_tokens') days[date].cache_miss += Number(amount||0);
+      if (typ === 'output_tokens') days[date].output += Number(amount||0);
+      if (typ.startsWith('input')) days[date].prompt += Number(amount||0);
+      if (typ === 'request_count') days[date].requests += Number(amount||0);
+      if (!days[date].byModel[mdl]) days[date].byModel[mdl] = {cost:0, tokens:0, cache_hit:0, cache_miss:0, output:0, requests:0};
+      days[date].byModel[mdl].cost += Number(cost||0);
+      days[date].byModel[mdl].tokens += Number(amount||0);
+      if (typ === 'input_cache_hit_tokens') days[date].byModel[mdl].cache_hit += Number(amount||0);
+      if (typ === 'input_cache_miss_tokens') days[date].byModel[mdl].cache_miss += Number(amount||0);
+      if (typ === 'output_tokens') days[date].byModel[mdl].output += Number(amount||0);
+      if (typ === 'request_count') days[date].byModel[mdl].requests += Number(amount||0);
+    }
+  }
+
+  // Merge cost_daily
+  const cdRows = db.exec(`SELECT utc_date, model, SUM(cost) as total_cost FROM cost_daily WHERE ${where} GROUP BY utc_date, model`, params);
+  if (cdRows.length) {
+    for (const row of cdRows[0].values) {
+      const [date, mdl, cost] = row;
+      if (!days[date]) days[date] = {date, cost_tokens:0, cost_csv:0, total_tokens:0, cache_hit:0, cache_miss:0,
+                                      output:0, prompt:0, requests:0, byModel:{}};
+      days[date].cost_csv += Number(cost||0);
+      if (!days[date].byModel[mdl]) days[date].byModel[mdl] = {cost:0, tokens:0, cache_hit:0, cache_miss:0, output:0, requests:0};
+      days[date].byModel[mdl].cost += Number(cost||0);
+    }
+  }
+
+  return Object.values(days).sort((a,b) => a.date.localeCompare(b.date));
+}
+
+function getModels() {
+  const r = db.exec('SELECT DISTINCT model FROM token_usage WHERE workspace_id = ? UNION SELECT DISTINCT model FROM cost_daily WHERE workspace_id = ?', [activeWsId, activeWsId]);
+  return r.length ? r[0].values.map(v => v[0]).sort() : [];
+}
+
+function getKeys() {
+  const r = db.exec('SELECT DISTINCT api_key_name FROM token_usage WHERE workspace_id = ? AND api_key_name != \"\"', [activeWsId]);
+  return r.length ? r[0].values.map(v => v[0]).sort() : [];
+}
+
+function getUploads() {
+  const r = db.exec('SELECT * FROM uploads WHERE workspace_id = ? ORDER BY uploaded_at DESC LIMIT 20', [activeWsId]);
+  return r.length ? r[0].values.map(v => ({id:v[0], workspace_id:v[1], filename:v[2], uploaded_at:v[3], mode:v[4], rows_replaced:v[5], rows_added:v[6], date_min:v[7], date_max:v[8]})) : [];
+}
+
+// ── Rendering ──
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+let refreshTimeout;
+async function refreshAll() {
+  clearTimeout(refreshTimeout);
+  if (!activeWsId) return;
+  const period = document.getElementById('periodSelect').value || 'all';
+  const modelFilter = document.getElementById('modelSelect').value || 'all';
+
+  const days = getDailyData(period, modelFilter);
+  if (!days.length) {
+    document.getElementById('kpiGrid').innerHTML = '<div style="color:var(--text-dim);padding:20px">No data yet — drag in a DeepSeek usage ZIP</div>';
+    return;
+  }
+
+  // KPI
+  const totalCost = days.reduce((s,d) => s + (d.cost_csv || d.cost_tokens), 0);
+  const totalTokens = days.reduce((s,d) => s + d.total_tokens, 0);
+  const totalPrompt = days.reduce((s,d) => s + d.prompt, 0);
+  const totalOutput = days.reduce((s,d) => s + d.output, 0);
+  const totalRequests = days.reduce((s,d) => s + d.requests, 0);
+  const avgDaily = days.length > 0 ? totalCost / days.length : 0;
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi-card"><div class="label">Total Cost</div><div class="value">${fmtUSD(totalCost)}</div><div class="sub">${days[0]?.date||'—'} → ${days[days.length-1]?.date||'—'}</div></div>
+    <div class="kpi-card"><div class="label">Total Tokens</div><div class="value">${fmtTok(totalTokens)}</div><div class="sub">${fmtTok(totalPrompt)} in · ${fmtTok(totalOutput)} out</div></div>
+    <div class="kpi-card"><div class="label">Requests</div><div class="value">${fmtNum(totalRequests)}</div><div class="sub">~${fmtNum(Math.round(totalRequests/Math.max(days.length,1)))}/day</div></div>
+    <div class="kpi-card"><div class="label">Avg Daily Cost</div><div class="value">${fmtUSD(avgDaily)}</div><div class="sub">${days.length} days of data</div></div>
+  `;
+
+  // Update period select with available months
+  const periodSel = document.getElementById('periodSelect');
+  const curPeriod = periodSel.value;
+  const months = new Set(days.map(d => d.date.slice(0,7)));
+  periodSel.innerHTML = '<option value="all">All Time</option><option value="7d">Last 7 Days</option><option value="30d">Last 30 Days</option>';
+  [...months].sort().reverse().forEach(m => {
+    const [y,mo] = m.split('-');
+    periodSel.innerHTML += `<option value="month-${m}">${new Date(y,mo-1).toLocaleDateString('en-US',{year:'numeric',month:'long'})}</option>`;
+  });
+  periodSel.value = periodSel.querySelector(`option[value="${curPeriod}"]`) ? curPeriod : 'all';
+
+  // Charts
+  renderTokenChart(days);
+  renderSpendChart(days);
+  renderModelPie(days);
+  renderRatioChart(days);
+  renderTopSpend(days);
+  renderKeyChart(days);
+
+  // Refresh models/keys dropdowns
+  const modelSel = document.getElementById('modelSelect');
+  const models = getModels();
+  modelSel.innerHTML = '<option value="all">All Models</option>' + models.map(m => `<option value="${m}">${m}</option>`).join('');
+  modelSel.value = models.includes(modelFilter) ? modelFilter : 'all';
+
+  const keySel = document.getElementById('keySelect');
+  const keys = getKeys();
+  keySel.innerHTML = '<option value="all">All Keys</option>' + keys.map(k => `<option value="${k}">${k}</option>`).join('');
+
+  // Refresh upload history
+  renderUploadHistory();
+
+  // Refresh raw data table
+  renderTable(days, modelFilter);
+}
+
+function renderTokenChart(days) {
+  destroyChart('tokens');
+  const ctx = document.getElementById('cTokens').getContext('2d');
+  charts.tokens = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: days.map(d => fmtDate(d.date)),
+      datasets: [
+        { label: 'Cache Hit', data: days.map(d => d.cache_hit), borderColor: '#39d2c0', backgroundColor: 'rgba(57,210,192,0.08)', fill: true, tension: 0.3, pointRadius: 0 },
+        { label: 'Cache Miss', data: days.map(d => d.cache_miss), borderColor: '#a371f7', backgroundColor: 'rgba(163,113,247,0.08)', fill: true, tension: 0.3, pointRadius: 0 },
+        { label: 'Output', data: days.map(d => d.output), borderColor: '#4c6ef5', backgroundColor: 'rgba(76,110,245,0.08)', fill: true, tension: 0.3, pointRadius: 0 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true, aspectRatio: 2.2,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: '#8b949e', usePointStyle: true, padding: 16, font: {size:10} } },
+        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + fmtTok(ctx.parsed.y) + ' tokens' } } },
+      scales: {
+        x: { ticks: { color: '#8b949e', maxTicksLimit: 14, font: {size:9} }, grid: { color: '#21262d' } },
+        y: { ticks: { color: '#8b949e', callback: v => fmtTok(v), font: {size:9} }, grid: { color: '#21262d' }, title: { display: true, text: 'Tokens', color: '#8b949e' } }
+      }
+    }
+  });
+}
+
+function renderSpendChart(days) {
+  destroyChart('spend');
+  const ctx = document.getElementById('cSpend').getContext('2d');
+  const models = [...new Set(days.flatMap(d => Object.keys(d.byModel)))];
+  const colors = ['#4c6ef5','#39d2c0','#a371f7','#d2991d','#f85149','#3fb950'];
+  const datasets = models.map((m, i) => ({
+    label: m, data: days.map(d => d.byModel[m]?.cost || 0), backgroundColor: colors[i%colors.length], borderRadius: 3
+  }));
+  charts.spend = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: days.map(d => fmtDate(d.date)), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: true, aspectRatio: 1.6,
+      plugins: { legend: { labels: { color: '#8b949e', usePointStyle: true, padding: 8, font: {size:10} } },
+        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + fmtUSD(ctx.parsed.y) } } },
+      scales: {
+        x: { stacked: true, ticks: { color: '#8b949e', maxTicksLimit: 14, font: {size:9} }, grid: { color: '#21262d' } },
+        y: { stacked: true, ticks: { color: '#8b949e', callback: v => fmtUSD(v), font: {size:9} }, grid: { color: '#21262d' } }
+      }
+    }
+  });
+}
+
+function renderModelPie(days) {
+  destroyChart('modelPie');
+  const ctx = document.getElementById('cModelPie').getContext('2d');
+  const mc = {}; days.forEach(d => Object.entries(d.byModel).forEach(([m,v]) => mc[m] = (mc[m]||0) + v.cost));
+  const entries = Object.entries(mc).sort((a,b) => b[1] - a[1]);
+  const colors = ['#4c6ef5','#39d2c0','#a371f7','#d2991d','#f85149','#3fb950'];
+  charts.modelPie = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: entries.map(e => e[0]), datasets: [{ data: entries.map(e => e[1]), backgroundColor: entries.map((_,i) => colors[i%colors.length]), borderColor: '#161b22', borderWidth: 2 }] },
+    options: {
+      responsive: true, maintainAspectRatio: true, aspectRatio: 1.4,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#8b949e', padding: 10, font: {size:9},
+          generateLabels: function(chart) {
+            return chart.data.labels.map((l,i) => ({ text: l + ' (' + fmtUSD(chart.data.datasets[0].data[i]) + ')',
+              fillStyle: chart.data.datasets[0].backgroundColor[i], strokeStyle: chart.data.datasets[0].backgroundColor[i], index: i }));
+          }
+        }},
+        tooltip: { callbacks: { label: ctx => ctx.label + ': ' + fmtUSD(ctx.parsed) } }
+      }
+    }
+  });
+}
+
+function renderRatioChart(days) {
+  destroyChart('ratio');
+  const tp = days.reduce((s,d) => s + d.prompt, 0);
+  const to = days.reduce((s,d) => s + d.output, 0);
+  const ctx = document.getElementById('cRatio').getContext('2d');
+  charts.ratio = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: ['Prompt Tokens', 'Completion Tokens'], datasets: [{ data: [tp, to], backgroundColor: ['#a371f7','#4c6ef5'], borderColor: '#161b22', borderWidth: 2 }] },
+    options: {
+      responsive: true, maintainAspectRatio: true, aspectRatio: 1.4,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#8b949e', padding: 10, font: {size:9},
+          generateLabels: function(chart) {
+            return chart.data.labels.map((l,i) => ({ text: l + ': ' + fmtTok(chart.data.datasets[0].data[i]),
+              fillStyle: chart.data.datasets[0].backgroundColor[i], strokeStyle: chart.data.datasets[0].backgroundColor[i], index: i }));
+          }
+        }},
+        tooltip: { callbacks: { label: ctx => ctx.label + ': ' + fmtTok(ctx.parsed) + ' (' + (ctx.parsed/(tp+to)*100).toFixed(1) + '%)' } }
+      }
+    }
+  });
+}
+
+function renderTopSpend(days) {
+  const sorted = [...days].sort((a,b) => (b.cost_csv||b.cost_tokens) - (a.cost_csv||a.cost_tokens)).slice(0,10);
+  document.getElementById('topSpend').innerHTML = sorted.map((d,i) =>
+    `<li><span class="rank">#${i+1}</span><span class="date">${fmtDate(d.date)}</span><span class="amount">${fmtUSD(d.cost_csv||d.cost_tokens)}</span></li>`
+  ).join('');
+}
+
+function renderKeyChart(days) {
+  destroyChart('key');
+  if (!activeWsId) return;
+
+  // Get per-key costs from DB
+  const r = db.exec(`SELECT api_key_name, SUM(price*amount) as total_cost FROM token_usage WHERE workspace_id = ? AND type != 'request_count' GROUP BY api_key_name ORDER BY total_cost DESC`, [activeWsId]);
+  if (!r.length) return;
+
+  const entries = r[0].values.filter(v => v[0]).slice(0, 12);
+  const colors = ['#4c6ef5','#39d2c0','#a371f7','#d2991d','#f85149','#3fb950','#f778ba','#79c0ff','#d2a8ff','#ffa657','#56d364','#db6d28'];
+  const ctx = document.getElementById('cKey').getContext('2d');
+  charts.key = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: entries.map(e => e[0]), datasets: [{ data: entries.map(e => Number(e[1])), backgroundColor: entries.map((_,i) => colors[i%colors.length]), borderRadius: 3 }] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: true, aspectRatio: 1.4,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtUSD(ctx.parsed.x) } } },
+      scales: {
+        x: { ticks: { color: '#8b949e', callback: v => fmtUSD(v), font: {size:9} }, grid: { color: '#21262d' } },
+        y: { ticks: { color: '#8b949e', font: {size:9} }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderUploadHistory() {
+  const uploads = getUploads();
+  const card = document.getElementById('historyCard');
+  if (!uploads.length) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  document.getElementById('historyList').innerHTML = uploads.map(u => {
+    const dt = new Date(u.uploaded_at);
+    const timeAgo = Math.round((Date.now() - dt.getTime()) / 60000);
+    return `<div class="history-item">
+      <span class="hi-name">${u.filename} <span style="color:var(--text-dim);font-size:0.7rem">${u.mode === 'replace' ? '(updated)' : '(new)'}</span></span>
+      <span class="hi-meta">${fmtNum(u.rows_added)} rows · ${u.date_min}→${u.date_max} · ${timeAgo < 60 ? timeAgo+'m ago' : Math.round(timeAgo/60)+'h ago'}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderTable(days, modelFilter) {
+  if (!activeWsId) return;
+
+  const period = document.getElementById('periodSelect').value || 'all';
+  const [start, end] = queryPeriod(period);
+
+  let where = 'workspace_id = ? AND utc_date >= ? AND utc_date <= ?';
+  const params = [activeWsId, start, end];
+  if (modelFilter && modelFilter !== 'all') { where += ' AND model = ?'; params.push(modelFilter); }
+
+  const r = db.exec(`SELECT utc_date, model, api_key_name, type, amount, price, (price*amount) as cost FROM token_usage WHERE ${where} ORDER BY utc_date DESC, model, type LIMIT 1000`, params);
+  const rows = r.length ? r[0].values : [];
+
+  document.getElementById('rowCount').textContent = `(${rows.length} rows, showing first 1000)`;
+  document.querySelector('#dataTable thead tr').innerHTML = '<th>Date</th><th>Model</th><th>API Key</th><th>Type</th><th class="num">Amount</th><th class="num">Unit Price</th><th class="num">Cost</th>';
+
+  document.querySelector('#dataTable tbody').innerHTML = rows.map(r => {
+    const typ = r[3], amt = Number(r[4]), price = Number(r[5]), cost = Number(r[6]);
+    return `<tr>
+      <td>${r[0]}</td><td>${r[1]}</td><td>${r[2]||'—'}</td><td>${typ}</td>
+      <td class="num">${typ==='request_count' ? fmtNum(amt) : fmtTok(amt)}</td>
+      <td class="num">${price > 0 ? '$'+price.toExponential(3) : '—'}</td>
+      <td class="num">${fmtUSD(cost)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Switch Workspace ──
+async function switchWorkspace(id) {
+  activeWsId = id;
+  document.getElementById('wsSelect').value = id;
+
+  if (id) {
+    document.getElementById('noWs').style.display = 'none';
+    document.getElementById('activeContent').style.display = 'block';
+    Object.values(charts).forEach(c => c.destroy()); charts = {};
+    await refreshAll();
+  } else {
+    document.getElementById('noWs').style.display = 'block';
+    document.getElementById('activeContent').style.display = 'none';
+  }
+}
+
+function refreshWsList() {
+  const workspaces = getWorkspaces();
+  const sel = document.getElementById('wsSelect');
+  sel.innerHTML = workspaces.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+  if (!workspaces.length) {
+    sel.innerHTML = '<option value="">No Workspace</option>';
+    switchWorkspace(null);
+  } else if (!activeWsId || !workspaces.find(w => w.id === activeWsId)) {
+    switchWorkspace(workspaces[0].id);
+  }
+  sel.value = activeWsId || '';
+}
+
+// ── Modal ──
+let modalCallback = null;
+function showModal(title, placeholder, cb) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalInput').value = '';
+  document.getElementById('modalInput').placeholder = placeholder || '';
+  document.getElementById('modalOverlay').classList.add('show');
+  document.getElementById('modalInput').focus();
+  modalCallback = cb;
+}
+function hideModal() { document.getElementById('modalOverlay').classList.remove('show'); modalCallback = null; }
+
+// ── Event Bindings ──
+document.getElementById('wsSelect').addEventListener('change', function() { switchWorkspace(this.value); });
+document.getElementById('wsNewBtn').addEventListener('click', () => {
+  showModal('Create Workspace', 'e.g. Personal, Work, Team', (name) => {
+    const id = createWorkspace(name); refreshWsList(); switchWorkspace(id); toast('Workspace created');
+  });
+});
+document.getElementById('wsRenameBtn').addEventListener('click', () => {
+  if (!activeWsId) return;
+  const ws = getWorkspaces().find(w => w.id === activeWsId);
+  showModal('Rename Workspace', ws?.name||'', (name) => { renameWorkspace(activeWsId, name); refreshWsList(); toast('Renamed'); });
+});
+document.getElementById('wsDeleteBtn').addEventListener('click', () => {
+  if (!activeWsId) return;
+  if (!confirm('Delete this workspace and ALL its data? This cannot be undone.')) return;
+  deleteWorkspace(activeWsId); activeWsId = null; refreshWsList(); toast('Workspace deleted');
+});
+document.getElementById('wsClearBtn').addEventListener('click', () => {
+  if (!activeWsId) return;
+  if (!confirm('Clear all data in this workspace? Charts will be empty until you upload again.')) return;
+  clearWorkspaceData(activeWsId); Object.values(charts).forEach(c => c.destroy()); charts = {}; refreshAll(); refreshWsList(); toast('Data cleared');
+});
+document.getElementById('noWsCreateBtn').addEventListener('click', () => document.getElementById('wsNewBtn').click());
+document.getElementById('modalCancel').addEventListener('click', hideModal);
+document.getElementById('modalConfirm').addEventListener('click', () => {
+  const val = document.getElementById('modalInput').value.trim();
+  if (!val) return;
+  hideModal();
+  if (modalCallback) modalCallback(val);
+});
+document.getElementById('modalInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('modalConfirm').click(); });
+
+['periodSelect','modelSelect','keySelect'].forEach(id => {
+  document.getElementById(id)?.addEventListener('change', refreshAll);
+});
+
+// Drop zone
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f) handleUpload(f); });
+dz.addEventListener('click', () => {
+  const inp = document.createElement('input'); inp.type='file'; inp.accept='.zip';
+  inp.onchange = () => { if (inp.files[0]) handleUpload(inp.files[0]); };
+  inp.click();
+});
+
+// Export
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (!activeWsId) return;
+  const period = document.getElementById('periodSelect').value || 'all';
+  const [start, end] = queryPeriod(period);
+  const r = db.exec(`SELECT utc_date, model, SUM(CASE WHEN type='input_cache_hit_tokens' THEN amount ELSE 0 END) as cache_hit, SUM(CASE WHEN type='input_cache_miss_tokens' THEN amount ELSE 0 END) as cache_miss, SUM(CASE WHEN type='output_tokens' THEN amount ELSE 0 END) as output_tokens, SUM(CASE WHEN type='request_count' THEN amount ELSE 0 END) as requests FROM token_usage WHERE workspace_id=? AND utc_date>=? AND utc_date<=? GROUP BY utc_date, model ORDER BY utc_date`, [activeWsId, start, end]);
+  const rows = r.length ? r[0].values : [];
+  const csv = 'date,model,cache_hit_tokens,cache_miss_tokens,output_tokens,requests\n' + rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv'}); const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='deepseek-export.csv'; a.click(); URL.revokeObjectURL(url);
+  toast('CSV exported');
+});
+
+document.getElementById('exportAllBtn').addEventListener('click', () => {
+  if (!activeWsId) return;
+  const r = db.exec(`SELECT * FROM token_usage WHERE workspace_id=? ORDER BY utc_date`, [activeWsId]);
+  const rows = r.length ? r[0].values : [];
+  const csv = 'utc_date,model,api_key_name,type,amount,price,cost\n' + rows.map(r => [r[2],r[3],r[4],r[5],r[6],r[7],Number(r[6]||0)*Number(r[7]||0)].join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv'}); const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='deepseek-raw-export.csv'; a.click(); URL.revokeObjectURL(url);
+  toast('Full raw data exported');
+});
+
+// ── Init ──
+async function init() {
+  try {
+    SQL = await initSqlJs({ locateFile: f => `https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/${f}` });
+    const loaded = await loadDB();
+    initSchema();
+
+    if (!loaded) {
+      // First time: create a default workspace and save
+      const id = genId();
+      db.run('INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)', [id, 'Default', new Date().toISOString()]);
+      await saveDB();
+    }
+
+    refreshWsList();
+    if (activeWsId) await refreshAll();
+
+    toast(loaded ? 'Workspace loaded from browser storage' : 'Dashboard ready — create a workspace to begin');
+  } catch(e) {
+    console.error(e);
+    document.body.innerHTML = `<div style="padding:48px;text-align:center;color:var(--red)"><h2>Failed to initialize</h2><p>${e.message}</p><p style="color:var(--text-dim)">Try reloading the page or clearing browser storage.</p></div>`;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
