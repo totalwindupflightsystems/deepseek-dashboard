@@ -504,7 +504,9 @@ async function _processSingleFile(file) {
 
 // -- Upload Processing (single file, backward compatible) --
 async function handleUpload(file) {
-  if (!file.name.endsWith('.zip')) { toast('Please drop a .zip file', true); return; }
+  const ext = file.name.toLowerCase().endsWith('.zip');
+  const mime = file.type === 'application/zip' || file.type === 'application/x-zip-compressed';
+  if (!ext && !mime) { toast('Please select a .zip file', true); return; }
   if (!activeWsId) { toast('Create a workspace first', true); return; }
 
   const dz = document.getElementById('dropZone');
@@ -532,10 +534,12 @@ async function handleMultipleUpload(files) {
   const dz = document.getElementById('dropZone');
   dz.classList.add('processing');
 
-  // Filter to only .zip files
+  // Filter to only .zip files (check extension and MIME type)
   const fileArray = [];
   for (let i = 0; i < files.length; i++) {
-    if (files[i].name.endsWith('.zip')) fileArray.push(files[i]);
+    const ext = files[i].name.toLowerCase().endsWith('.zip');
+    const mime = files[i].type === 'application/zip' || files[i].type === 'application/x-zip-compressed';
+    if (ext || mime) fileArray.push(files[i]);
   }
 
   if (fileArray.length === 0) {
@@ -1388,7 +1392,7 @@ dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dra
 dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
 dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); if (e.dataTransfer.files.length) handleMultipleUpload(e.dataTransfer.files); });
 dz.addEventListener('click', () => {
-  const inp = document.createElement('input'); inp.type='file'; inp.accept='.zip'; inp.multiple = true;
+  const inp = document.createElement('input'); inp.type='file'; inp.accept='application/zip,application/x-zip-compressed,.zip'; inp.multiple = true;
   inp.onchange = () => { if (inp.files.length) handleMultipleUpload(inp.files); };
   inp.click();
 });
