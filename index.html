@@ -127,6 +127,20 @@ tr:hover td { background: var(--bg-card-hover); }
   header { flex-direction: column; align-items: flex-start; }
 }
 
+/* OpenRouter Comparison */
+.or-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 20px; }
+.or-section summary { cursor: pointer; font-weight: 600; color: var(--text-bright); font-size: 0.9rem; user-select: none; }
+.or-section summary:hover { color: var(--accent); }
+.or-section .or-content { margin-top: 12px; }
+.or-section .or-privacy { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 10px; line-height: 1.4; }
+.or-section .or-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.or-section input[type="password"] { background: var(--bg-input); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; font-size: 0.85rem; font-family: var(--font); flex: 1; min-width: 200px; }
+.or-section input[type="password"]:focus { outline: none; border-color: var(--accent); }
+.or-section .or-status { font-size: 0.78rem; color: var(--text-dim); margin-top: 6px; }
+.or-section .or-status.loading { color: var(--orange); }
+.or-section .or-status.error { color: var(--red); }
+.or-section .or-status.success { color: var(--green); }
+
 /* Storage indicator */
 .storage-indicator { font-size: 0.7rem; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
 .storage-indicator .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
@@ -167,6 +181,22 @@ tr:hover td { background: var(--bg-card-hover); }
       <div class="drop-title">Drop DeepSeek usage ZIP here</div>
       <div class="drop-sub">or click to select — manages diffs automatically</div>
     </div>
+
+    <!-- OpenRouter Comparison -->
+    <details class="or-section" id="orSection">
+      <summary>OpenRouter Comparison Mode</summary>
+      <div class="or-content">
+        <div class="or-privacy">
+          Your OpenRouter API key is sent directly from your browser to OpenRouter's API and is never stored in localStorage or sent to any other server. The key is held in memory only while this session is active.
+        </div>
+        <div class="or-row">
+          <input type="password" id="orApiKey" placeholder="sk-or-v1-… (OpenRouter API key)">
+          <button class="btn btn-accent" id="orFetchBtn">Fetch</button>
+          <button class="btn" id="orClearBtn" style="display:none">Clear Overlay</button>
+        </div>
+        <div class="or-status" id="orStatus"></div>
+      </div>
+    </details>
 
     <!-- Upload History -->
     <div class="history-card" id="historyCard" style="display:none">
@@ -230,6 +260,7 @@ let SQL = null;
 let db = null;
 let activeWsId = null;
 let charts = {};
+let orData = null;  // OpenRouter comparison data
 const IDB_NAME = 'deepseek-dashboard';
 const IDB_STORE = 'sqlite-db';
 const DB_KEY = 'main';
@@ -548,6 +579,93 @@ function getUploads() {
   return r.length ? r[0].values.map(v => ({id:v[0], workspace_id:v[1], filename:v[2], uploaded_at:v[3], mode:v[4], rows_replaced:v[5], rows_added:v[6], date_min:v[7], date_max:v[8]})) : [];
 }
 
+// ── OpenRouter Comparison ──
+async function fetchOpenRouterData() {
+  const apiKey = document.getElementById('orApiKey').value.trim();
+  if (!apiKey) {
+    setORStatus('Please enter your OpenRouter API key', 'error');
+    return;
+  }
+
+  const period = document.getElementById('periodSelect').value || 'all';
+  const [startDate, endDate] = queryPeriod(period);
+
+  setORStatus('Fetching OpenRouter analytics…', 'loading');
+
+  try {
+    const url = `https://openrouter.ai/api/v1/analytics?start_date=${startDate}&end_date=${endDate}&granularity=day`;
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+
+    if (response.status === 401) {
+      setORStatus('Invalid API key (401 Unauthorized)', 'error');
+      return;
+    }
+    if (response.status === 429) {
+      setORStatus('Rate limited (429). Please try again later.', 'error');
+      return;
+    }
+    if (!response.ok) {
+      setORStatus(`Error ${response.status}: ${response.statusText}`, 'error');
+      return;
+    }
+
+    const data = await response.json();
+
+    // Parse response - expected format has data keyed by date
+    // Structure: { data: { "YYYY-MM-DD": { total_tokens: N, cost: N, ... }, ... } }
+    orData = {};
+    if (data.data && typeof data.data === 'object') {
+      Object.entries(data.data).forEach(([date, dayData]) => {
+        orData[date] = {
+          total_tokens: dayData.total_tokens || dayData.tokens || 0,
+          cost: dayData.cost || dayData.total_cost || 0
+        };
+      });
+    } else if (Array.isArray(data.data)) {
+      // Alternative format: array of { date, total_tokens, cost }
+      data.data.forEach(d => {
+        orData[d.date] = {
+          total_tokens: d.total_tokens || d.tokens || 0,
+          cost: d.cost || d.total_cost || 0
+        };
+      });
+    }
+
+    if (Object.keys(orData).length === 0) {
+      setORStatus('No data returned from OpenRouter API', 'error');
+      orData = null;
+      return;
+    }
+
+    setORStatus(`Loaded ${Object.keys(orData).length} days of OpenRouter data`, 'success');
+    document.getElementById('orClearBtn').style.display = 'inline-block';
+
+    // Re-render charts with OR overlay
+    await refreshAll();
+
+  } catch (e) {
+    setORStatus('Network error: ' + e.message, 'error');
+    console.error('OpenRouter fetch error:', e);
+  }
+}
+
+function setORStatus(msg, type) {
+  const el = document.getElementById('orStatus');
+  el.textContent = msg;
+  el.className = 'or-status' + (type ? ' ' + type : '');
+}
+
+function clearOROverlay() {
+  orData = null;
+  document.getElementById('orStatus').textContent = '';
+  document.getElementById('orStatus').className = 'or-status';
+  document.getElementById('orClearBtn').style.display = 'none';
+  // Don't clear the API key - user might want to refetch
+  refreshAll();
+}
+
 // ── Rendering ──
 function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
 
@@ -591,12 +709,41 @@ async function refreshAll() {
   periodSel.value = periodSel.querySelector(`option[value="${curPeriod}"]`) ? curPeriod : 'all';
 
   // Charts
-  renderTokenChart(days);
-  renderSpendChart(days);
+  renderTokenChart(days, orData);
+  renderSpendChart(days, orData);
   renderModelPie(days);
   renderRatioChart(days);
   renderTopSpend(days);
   renderKeyChart(days);
+
+  // OpenRouter comparison KPI
+  if (orData && typeof orData === 'object') {
+    const orTotalCost = Object.values(orData).reduce((s, d) => s + (d.cost || 0), 0);
+    const orTotalTokens = Object.values(orData).reduce((s, d) => s + (d.total_tokens || 0), 0);
+    const dsTotalCost = days.reduce((s,d) => s + (d.cost_csv || d.cost_tokens), 0);
+    const dsTotalTokens = days.reduce((s,d) => s + d.total_tokens, 0);
+
+    // Add comparison card to KPI grid
+    const kpiGrid = document.getElementById('kpiGrid');
+    // Check if comparison card already exists
+    let compCard = document.getElementById('orCompCard');
+    if (!compCard) {
+      compCard = document.createElement('div');
+      compCard.id = 'orCompCard';
+      compCard.className = 'kpi-card';
+      kpiGrid.appendChild(compCard);
+    }
+    compCard.innerHTML = `
+      <div class="label">OR vs DS Comparison</div>
+      <div class="value" style="font-size:1.1rem">${fmtUSD(orTotalCost)} vs ${fmtUSD(dsTotalCost)}</div>
+      <div class="sub">OR: ${fmtTok(orTotalTokens)} tokens · DS: ${fmtTok(dsTotalTokens)} tokens<br>
+      Cost diff: ${orTotalCost > dsTotalCost ? '+' : ''}${fmtUSD(orTotalCost - dsTotalCost)}</div>
+    `;
+  } else {
+    // Remove comparison card if no OR data
+    const compCard = document.getElementById('orCompCard');
+    if (compCard) compCard.remove();
+  }
 
   // Refresh models/keys dropdowns
   const modelSel = document.getElementById('modelSelect');
@@ -615,19 +762,38 @@ async function refreshAll() {
   renderTable(days, modelFilter);
 }
 
-function renderTokenChart(days) {
+function renderTokenChart(days, orData) {
   destroyChart('tokens');
   const ctx = document.getElementById('cTokens').getContext('2d');
+  const datasets = [
+    { label: 'Cache Hit', data: days.map(d => d.cache_hit), borderColor: '#39d2c0', backgroundColor: 'rgba(57,210,192,0.08)', fill: true, tension: 0.3, pointRadius: 0 },
+    { label: 'Cache Miss', data: days.map(d => d.cache_miss), borderColor: '#a371f7', backgroundColor: 'rgba(163,113,247,0.08)', fill: true, tension: 0.3, pointRadius: 0 },
+    { label: 'Output', data: days.map(d => d.output), borderColor: '#4c6ef5', backgroundColor: 'rgba(76,110,245,0.08)', fill: true, tension: 0.3, pointRadius: 0 },
+  ];
+
+  // Add OpenRouter overlay if data available
+  if (orData && typeof orData === 'object') {
+    const orTokens = days.map(d => orData[d.date]?.total_tokens || null);
+    // Only add if we have at least some data
+    if (orTokens.some(v => v !== null)) {
+      datasets.push({
+        label: 'OR Total Tokens',
+        data: orTokens,
+        borderColor: '#d2991d',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        borderDash: [8, 4],
+        fill: false,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 4
+      });
+    }
+  }
+
   charts.tokens = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels: days.map(d => fmtDate(d.date)),
-      datasets: [
-        { label: 'Cache Hit', data: days.map(d => d.cache_hit), borderColor: '#39d2c0', backgroundColor: 'rgba(57,210,192,0.08)', fill: true, tension: 0.3, pointRadius: 0 },
-        { label: 'Cache Miss', data: days.map(d => d.cache_miss), borderColor: '#a371f7', backgroundColor: 'rgba(163,113,247,0.08)', fill: true, tension: 0.3, pointRadius: 0 },
-        { label: 'Output', data: days.map(d => d.output), borderColor: '#4c6ef5', backgroundColor: 'rgba(76,110,245,0.08)', fill: true, tension: 0.3, pointRadius: 0 },
-      ]
-    },
+    data: { labels: days.map(d => fmtDate(d.date)), datasets },
     options: {
       responsive: true, maintainAspectRatio: true, aspectRatio: 2.2,
       interaction: { mode: 'index', intersect: false },
@@ -641,17 +807,40 @@ function renderTokenChart(days) {
   });
 }
 
-function renderSpendChart(days) {
+function renderSpendChart(days, orData) {
   destroyChart('spend');
   const ctx = document.getElementById('cSpend').getContext('2d');
+  const labels = days.map(d => fmtDate(d.date));
   const models = [...new Set(days.flatMap(d => Object.keys(d.byModel)))];
   const colors = ['#4c6ef5','#39d2c0','#a371f7','#d2991d','#f85149','#3fb950'];
   const datasets = models.map((m, i) => ({
     label: m, data: days.map(d => d.byModel[m]?.cost || 0), backgroundColor: colors[i%colors.length], borderRadius: 3
   }));
+
+  // Add OpenRouter overlay if data available
+  if (orData && typeof orData === 'object') {
+    const orCosts = days.map(d => orData[d.date]?.cost || null);
+    // Only add if we have at least some data
+    if (orCosts.some(v => v !== null)) {
+      datasets.push({
+        label: 'OR Cost',
+        data: orCosts,
+        borderColor: '#d2991d',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        borderDash: [8, 4],
+        fill: false,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        type: 'line'
+      });
+    }
+  }
+
   charts.spend = new Chart(ctx, {
     type: 'bar',
-    data: { labels: days.map(d => fmtDate(d.date)), datasets },
+    data: { labels, datasets },
     options: {
       responsive: true, maintainAspectRatio: true, aspectRatio: 1.6,
       plugins: { legend: { labels: { color: '#8b949e', usePointStyle: true, padding: 8, font: {size:10} } },
@@ -857,6 +1046,10 @@ document.getElementById('modalConfirm').addEventListener('click', () => {
   if (modalCallback) modalCallback(val);
 });
 document.getElementById('modalInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('modalConfirm').click(); });
+
+// OpenRouter Comparison buttons
+document.getElementById('orFetchBtn').addEventListener('click', fetchOpenRouterData);
+document.getElementById('orClearBtn').addEventListener('click', clearOROverlay);
 
 ['periodSelect','modelSelect','keySelect'].forEach(id => {
   document.getElementById(id)?.addEventListener('change', refreshAll);
