@@ -111,11 +111,23 @@ header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-bright); lett
 .data-section h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
 .data-section .row-count { font-size: 0.72rem; color: var(--text-dim); font-weight: 400; }
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); max-height: 400px; overflow-y: auto; }
+
+/* Virtual scroll table layout */
+.table-wrap.virtual-scroll table { display: flex; flex-direction: column; }
+.table-wrap.virtual-scroll thead { display: table; width: 100%; table-layout: fixed; }
+.table-wrap.virtual-scroll tbody { display: block; position: relative; overflow: hidden; flex: 1; }
+.table-wrap.virtual-scroll tbody tr.v-row { position: absolute; left: 0; right: 0; display: table; table-layout: fixed; width: 100%; }
+.table-wrap.virtual-scroll tbody tr.v-row:hover td { background: var(--bg-card-hover); }
+
+/* Colgroup for fixed column widths in virtual scroll mode */
+.table-wrap.virtual-scroll colgroup col { width: auto; }
+
+/* Shared table styles */
 table { width: 100%; border-collapse: collapse; font-size: 0.78rem; font-family: var(--mono); }
 thead { position: sticky; top: 0; z-index: 1; }
 th { background: var(--bg-card); color: var(--text-dim); font-weight: 600; text-align: left; padding: 7px 10px; border-bottom: 2px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
 th:hover { color: var(--text); }
-td { padding: 5px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 5px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 tr:hover td { background: var(--bg-card-hover); }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 
@@ -163,8 +175,8 @@ tr:hover td { background: var(--bg-card-hover); }
     <div class="ws-bar" id="wsBar">
       <select id="wsSelect"><option value="">No Workspace</option></select>
       <button class="btn-sm accent" id="wsNewBtn">+ New</button>
-      <button class="btn-sm" id="wsRenameBtn" title="Rename">✏️</button>
-      <button class="btn-sm danger" id="wsDeleteBtn" title="Delete workspace">🗑</button>
+      <button class="btn-sm" id="wsRenameBtn" title="Rename">&#9998;</button>
+      <button class="btn-sm danger" id="wsDeleteBtn" title="Delete workspace">&#128465;</button>
       <button class="btn-sm" id="wsClearBtn" title="Clear all data">Clear</button>
     </div>
     <span class="storage-indicator" id="storageInd"><span class="dot"></span><span id="storageLabel">ready</span></span>
@@ -184,7 +196,7 @@ tr:hover td { background: var(--bg-card-hover); }
     <div class="drop-zone" id="dropZone">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0L8 8m4-4l4 4M4 20h16"/></svg>
       <div class="drop-title">Drop DeepSeek usage ZIP here</div>
-      <div class="drop-sub">or click to select — manages diffs automatically</div>
+      <div class="drop-sub">or click to select &mdash; manages diffs automatically</div>
     </div>
 
     <!-- OpenRouter Comparison -->
@@ -195,7 +207,7 @@ tr:hover td { background: var(--bg-card-hover); }
           Your OpenRouter API key is sent directly from your browser to OpenRouter's API and is never stored in localStorage or sent to any other server. The key is held in memory only while this session is active.
         </div>
         <div class="or-row">
-          <input type="password" id="orApiKey" placeholder="sk-or-v1-… (OpenRouter API key)">
+          <input type="password" id="orApiKey" placeholder="sk-or-v1-&hellip; (OpenRouter API key)">
           <button class="btn btn-accent" id="orFetchBtn">Fetch</button>
           <button class="btn" id="orClearBtn" style="display:none">Clear Overlay</button>
         </div>
@@ -226,12 +238,12 @@ tr:hover td { background: var(--bg-card-hover); }
 
     <!-- Charts -->
     <div class="chart-grid" id="chartGrid">
-      <div class="chart-card wide"><div class="chart-header"><h3>Token Usage Over Time</h3><button class="chart-dl-btn" data-chart="tokens" data-type="token-usage" title="Download PNG">⬇</button></div><div class="chart-wrap"><canvas id="cTokens"></canvas></div></div>
-      <div class="chart-card"><div class="chart-header"><h3>Daily Spend by Model</h3><button class="chart-dl-btn" data-chart="spend" data-type="daily-spend" title="Download PNG">⬇</button></div><div class="chart-wrap"><canvas id="cSpend"></canvas></div></div>
-      <div class="chart-card"><div class="chart-header"><h3>Per-Model Breakdown</h3><button class="chart-dl-btn" data-chart="modelPie" data-type="per-model" title="Download PNG">⬇</button></div><div class="chart-wrap"><canvas id="cModelPie"></canvas></div></div>
-      <div class="chart-card"><div class="chart-header"><h3>Prompt vs Completion</h3><button class="chart-dl-btn" data-chart="ratio" data-type="prompt-vs-completion" title="Download PNG">⬇</button></div><div class="chart-wrap"><canvas id="cRatio"></canvas></div></div>
+      <div class="chart-card wide"><div class="chart-header"><h3>Token Usage Over Time</h3><button class="chart-dl-btn" data-chart="tokens" data-type="token-usage" title="Download PNG">&#11015;</button></div><div class="chart-wrap"><canvas id="cTokens"></canvas></div></div>
+      <div class="chart-card"><div class="chart-header"><h3>Daily Spend by Model</h3><button class="chart-dl-btn" data-chart="spend" data-type="daily-spend" title="Download PNG">&#11015;</button></div><div class="chart-wrap"><canvas id="cSpend"></canvas></div></div>
+      <div class="chart-card"><div class="chart-header"><h3>Per-Model Breakdown</h3><button class="chart-dl-btn" data-chart="modelPie" data-type="per-model" title="Download PNG">&#11015;</button></div><div class="chart-wrap"><canvas id="cModelPie"></canvas></div></div>
+      <div class="chart-card"><div class="chart-header"><h3>Prompt vs Completion</h3><button class="chart-dl-btn" data-chart="ratio" data-type="prompt-vs-completion" title="Download PNG">&#11015;</button></div><div class="chart-wrap"><canvas id="cRatio"></canvas></div></div>
       <div class="chart-card"><h3>Top 10 Spend Days</h3><ul class="spend-list" id="topSpend"></ul></div>
-      <div class="chart-card"><div class="chart-header"><h3>Per-Key Spend</h3><button class="chart-dl-btn" data-chart="key" data-type="per-key" title="Download PNG">⬇</button></div><div class="chart-wrap"><canvas id="cKey"></canvas></div></div>
+      <div class="chart-card"><div class="chart-header"><h3>Per-Key Spend</h3><button class="chart-dl-btn" data-chart="key" data-type="per-key" title="Download PNG">&#11015;</button></div><div class="chart-wrap"><canvas id="cKey"></canvas></div></div>
     </div>
 
     <!-- Raw Data -->
@@ -249,7 +261,7 @@ tr:hover td { background: var(--bg-card-hover); }
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
       <h3 id="modalTitle">Create Workspace</h3>
-      <input type="text" id="modalInput" placeholder="Workspace name…" autocomplete="off">
+      <input type="text" id="modalInput" placeholder="Workspace name&hellip;" autocomplete="off">
       <div class="btn-row">
         <button class="btn" id="modalCancel">Cancel</button>
         <button class="btn btn-accent" id="modalConfirm">Create</button>
@@ -260,7 +272,7 @@ tr:hover td { background: var(--bg-card-hover); }
 </div>
 
 <script>
-// ── Global State ──
+// -- Global State --
 let SQL = null;
 let db = null;
 let activeWsId = null;
@@ -271,7 +283,10 @@ const IDB_NAME = 'deepseek-dashboard';
 const IDB_STORE = 'sqlite-db';
 const DB_KEY = 'main';
 
-// ── Utilities ──
+// Virtual scroller state
+let _vscroll = null;  // { rows, rowHeight, pool[], topSpacer, bottomSpacer, poolSize, animationId, initialized }
+
+// -- Utilities --
 function fmtUSD(n) { return '$' + Number(n).toFixed(2); }
 function fmtTok(n) {
   n = Number(n);
@@ -289,7 +304,7 @@ function toast(msg, warn) {
   clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3000);
 }
 
-// ── IndexedDB Persistence ──
+// -- IndexedDB Persistence --
 function idb() { return new Promise((resolve, reject) => {
   const req = indexedDB.open(IDB_NAME, 1);
   req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
@@ -330,13 +345,13 @@ function setStorageStatus(s) {
   const dot = document.querySelector('#storageInd .dot');
   const label = document.getElementById('storageLabel');
   dot.className = 'dot';
-  if (s === 'saving') { dot.classList.add('saving'); label.textContent = 'saving…'; }
+  if (s === 'saving') { dot.classList.add('saving'); label.textContent = 'saving...'; }
   else if (s === 'saved') { label.textContent = 'saved'; }
   else if (s === 'error') { dot.classList.add('error'); label.textContent = 'error'; }
   else { label.textContent = 'ready'; }
 }
 
-// ── Schema ──
+// -- Schema --
 function initSchema() {
   db.run(`CREATE TABLE IF NOT EXISTS workspaces (
     id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL, last_upload_at TEXT)`);
@@ -357,7 +372,7 @@ function initSchema() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_cost_ws ON cost_daily(workspace_id, utc_date)`);
 }
 
-// ── Workspace Management ──
+// -- Workspace Management --
 function getWorkspaces() {
   const rows = [];
   db.each('SELECT * FROM workspaces ORDER BY created_at DESC', {}, (r) => rows.push(r));
@@ -392,7 +407,7 @@ function clearWorkspaceData(id) {
   saveDB();
 }
 
-// ── CSV Parser ──
+// -- CSV Parser --
 function parseCSV(text) {
   text = text.replace(/^\uFEFF/, '').trim();
   const lines = text.split(/\r?\n/);
@@ -413,7 +428,7 @@ function parseCSV(text) {
   return rows;
 }
 
-// ── Core file processing (no UI, no refreshAll) ──
+// -- Core file processing (no UI, no refreshAll) --
 async function _processSingleFile(file) {
   const zip = await JSZip.loadAsync(file);
   let amountRows = [], costRows = [];
@@ -487,14 +502,14 @@ async function _processSingleFile(file) {
   return { success: true, message: `${mode === 'replace' ? 'Updated' : 'Added'} ${fmtNum(tokenCount)} rows · ${dateMin} → ${dateMax}`, file: file.name };
 }
 
-// ── Upload Processing (single file, backward compatible) ──
+// -- Upload Processing (single file, backward compatible) --
 async function handleUpload(file) {
   if (!file.name.endsWith('.zip')) { toast('Please drop a .zip file', true); return; }
   if (!activeWsId) { toast('Create a workspace first', true); return; }
 
   const dz = document.getElementById('dropZone');
   dz.classList.add('processing');
-  dz.querySelector('.drop-title').textContent = 'Processing…';
+  dz.querySelector('.drop-title').textContent = 'Processing...';
 
   try {
     const result = await _processSingleFile(file);
@@ -509,7 +524,7 @@ async function handleUpload(file) {
   await refreshAll();
 }
 
-// ── Multiple file upload ──
+// -- Multiple file upload --
 async function handleMultipleUpload(files) {
   if (!files || files.length === 0) return;
   if (!activeWsId) { toast('Create a workspace first', true); return; }
@@ -556,7 +571,7 @@ async function handleMultipleUpload(files) {
   await refreshAll();
 }
 
-// ── Data Querying ──
+// -- Data Querying --
 function queryPeriod(period) {
   if (period === 'all') return ['1','1'];
   if (period === '7d') {
@@ -629,7 +644,7 @@ function getModels() {
 }
 
 function getKeys() {
-  const r = db.exec('SELECT DISTINCT api_key_name FROM token_usage WHERE workspace_id = ? AND api_key_name != \"\"', [activeWsId]);
+  const r = db.exec('SELECT DISTINCT api_key_name FROM token_usage WHERE workspace_id = ? AND api_key_name != ""', [activeWsId]);
   return r.length ? r[0].values.map(v => v[0]).sort() : [];
 }
 
@@ -638,7 +653,7 @@ function getUploads() {
   return r.length ? r[0].values.map(v => ({id:v[0], workspace_id:v[1], filename:v[2], uploaded_at:v[3], mode:v[4], rows_replaced:v[5], rows_added:v[6], date_min:v[7], date_max:v[8]})) : [];
 }
 
-// ── OpenRouter Comparison ──
+// -- OpenRouter Comparison --
 async function fetchOpenRouterData() {
   const apiKey = document.getElementById('orApiKey').value.trim();
   if (!apiKey) {
@@ -649,7 +664,7 @@ async function fetchOpenRouterData() {
   const period = document.getElementById('periodSelect').value || 'all';
   const [startDate, endDate] = queryPeriod(period);
 
-  setORStatus('Fetching OpenRouter analytics…', 'loading');
+  setORStatus('Fetching OpenRouter analytics...', 'loading');
 
   try {
     const url = `https://openrouter.ai/api/v1/analytics?start_date=${startDate}&end_date=${endDate}&granularity=day`;
@@ -725,7 +740,7 @@ function clearOROverlay() {
   refreshAll();
 }
 
-// ── Rendering ──
+// -- Rendering --
 function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
 
 function downloadChart(chartKey, chartType) {
@@ -1025,6 +1040,205 @@ function renderUploadHistory() {
   }).join('');
 }
 
+// -- Virtual Scroller Implementation --
+
+// Build a single row from raw data array
+function _buildRowContent(r) {
+  const typ = r[3], amt = Number(r[4]), price = Number(r[5]), cost = Number(r[6]);
+  return [
+    r[0],
+    r[1],
+    r[2]||'\u2014',
+    typ,
+    typ === 'request_count' ? fmtNum(amt) : fmtTok(amt),
+    price > 0 ? '$' + price.toExponential(3) : '\u2014',
+    fmtUSD(cost)
+  ];
+}
+
+// Set column widths from thead measurement
+function _syncColWidths(table, colgroup) {
+  const ths = table.querySelectorAll('thead th');
+  const cols = colgroup.querySelectorAll('col');
+  let totalWidth = 0;
+  ths.forEach((th, i) => {
+    const w = th.offsetWidth;
+    if (cols[i]) cols[i].style.width = w + 'px';
+    totalWidth += w;
+  });
+  // Set table width to match
+  table.style.width = Math.max(totalWidth, table.offsetParent ? table.offsetParent.clientWidth : totalWidth) + 'px';
+}
+
+// Create a recycled pool row
+function _createPoolRow() {
+  const tr = document.createElement('tr');
+  tr.className = 'v-row';
+  for (let c = 0; c < 7; c++) {
+    const td = document.createElement('td');
+    if (c >= 4) td.className = 'num';
+    tr.appendChild(td);
+  }
+  return tr;
+}
+
+// Destroy virtual scroller state
+function _destroyVScroll() {
+  if (_vscroll) {
+    if (_vscroll.animationId) cancelAnimationFrame(_vscroll.animationId);
+    if (_vscroll.scrollHandler) {
+      _vscroll.tableWrap.removeEventListener('scroll', _vscroll.scrollHandler, { passive: true });
+    }
+    if (_vscroll.resizeObserver) _vscroll.resizeObserver.disconnect();
+    _vscroll = null;
+  }
+}
+
+// Initialize virtual scroll on the table
+function _initVScroll(rows, table, tableWrap) {
+  _destroyVScroll();
+
+  const BUFFER = 10;
+  const ROW_HEIGHT = 28; // initial estimate, refined after first render
+  let rowHeight = ROW_HEIGHT;
+  const totalRows = rows.length;
+
+  // Add colgroup for fixed column widths
+  let colgroup = table.querySelector('colgroup');
+  if (!colgroup) {
+    colgroup = document.createElement('colgroup');
+    for (let i = 0; i < 7; i++) {
+      colgroup.appendChild(document.createElement('col'));
+    }
+    table.insertBefore(colgroup, table.firstChild);
+  }
+
+  // Switch to virtual scroll layout
+  tableWrap.classList.add('virtual-scroll');
+  const tbody = table.querySelector('tbody');
+
+  // Reset tbody styles
+  tbody.style.display = 'block';
+  tbody.style.position = 'relative';
+  tbody.style.overflow = 'hidden';
+  tbody.innerHTML = '';
+
+  // Calculate pool size
+  const viewportH = tableWrap.clientHeight || 400;
+  const poolSize = Math.ceil(viewportH / rowHeight) + 2 * BUFFER + 5;
+
+  // Create pool of reusable rows
+  const pool = [];
+  for (let i = 0; i < poolSize; i++) {
+    const tr = _createPoolRow();
+    tbody.appendChild(tr);
+    pool.push(tr);
+  }
+
+  // Set the total scroll height
+  const totalHeight = totalRows * rowHeight;
+  tbody.style.height = totalHeight + 'px';
+
+  // Sync column widths after a frame for layout settling
+  requestAnimationFrame(() => {
+    _syncColWidths(table, colgroup);
+  });
+
+  // State
+  _vscroll = {
+    rows,
+    rowHeight,
+    pool,
+    poolSize,
+    tableWrap,
+    tbody,
+    table,
+    colgroup,
+    totalRows,
+    totalHeight,
+    lastStartIdx: -1,
+    initialized: false,
+    scrollHandler: null,
+    animationId: null,
+    resizeObserver: null
+  };
+
+  // Scroll handler (throttled via rAF)
+  function handleScroll() {
+    if (_vscroll.animationId) return; // throttle: only one rAF pending
+    _vscroll.animationId = requestAnimationFrame(() => {
+      _vscroll.animationId = null;
+      _updateVisibleRows(_vscroll);
+    });
+  }
+
+  _vscroll.scrollHandler = handleScroll;
+  tableWrap.addEventListener('scroll', handleScroll, { passive: true });
+
+  // First render
+  _vscroll.initialized = true;
+  _updateVisibleRows(_vscroll);
+
+  // Observe resize
+  const ro = new ResizeObserver(() => {
+    _syncColWidths(table, colgroup);
+    _updateVisibleRows(_vscroll);
+  });
+  ro.observe(tableWrap);
+  _vscroll.resizeObserver = ro;
+}
+
+// Update which rows are visible based on scroll position
+function _updateVisibleRows(vs) {
+  if (!vs || !vs.initialized) return;
+
+  const { rows, pool, poolSize, tableWrap, tbody, rowHeight, totalRows, totalHeight } = vs;
+
+  const scrollTop = tableWrap.scrollTop;
+  const viewportH = tableWrap.clientHeight || 400;
+  const BUFFER = 10;
+
+  // Calculate visible range
+  let startIdx = Math.floor(scrollTop / rowHeight) - BUFFER;
+  startIdx = Math.max(0, startIdx);
+  let endIdx = startIdx + poolSize;
+  endIdx = Math.min(totalRows, endIdx);
+  // Adjust start if we're near the end
+  if (endIdx === totalRows) {
+    startIdx = Math.max(0, endIdx - poolSize);
+  }
+
+  // Update total height in case rowHeight has been refined
+  tbody.style.height = totalHeight + 'px';
+
+  // Recycle pool: position and populate each visible row
+  const firstVisible = startIdx;
+  const lastVisible = startIdx + poolSize;
+
+  for (let i = 0; i < poolSize; i++) {
+    const dataIdx = firstVisible + i;
+    if (dataIdx < totalRows) {
+      const tr = pool[i];
+      const top = dataIdx * rowHeight;
+      tr.style.top = top + 'px';
+      tr.style.display = 'table';
+
+      // Only update content if data changed
+      const r = rows[dataIdx];
+      const vals = _buildRowContent(r);
+      const tds = tr.children;
+      for (let c = 0; c < 7; c++) {
+        if (tds[c].textContent !== vals[c]) {
+          tds[c].textContent = vals[c];
+        }
+      }
+    } else {
+      pool[i].style.display = 'none';
+    }
+  }
+}
+
+// -- renderTable --
 function renderTable(days, modelFilter) {
   if (!activeWsId) return;
 
@@ -1035,24 +1249,58 @@ function renderTable(days, modelFilter) {
   const params = [activeWsId, start, end];
   if (modelFilter && modelFilter !== 'all') { where += ' AND model = ?'; params.push(modelFilter); }
 
-  const r = db.exec(`SELECT utc_date, model, api_key_name, type, amount, price, (price*amount) as cost FROM token_usage WHERE ${where} ORDER BY utc_date DESC, model, type LIMIT 1000`, params);
+  // Remove LIMIT 1000 - fetch all matching rows
+  const r = db.exec(`SELECT utc_date, model, api_key_name, type, amount, price, (price*amount) as cost FROM token_usage WHERE ${where} ORDER BY utc_date DESC, model, type`, params);
   const rows = r.length ? r[0].values : [];
 
-  document.getElementById('rowCount').textContent = `(${rows.length} rows, showing first 1000)`;
-  document.querySelector('#dataTable thead tr').innerHTML = '<th>Date</th><th>Model</th><th>API Key</th><th>Type</th><th class="num">Amount</th><th class="num">Unit Price</th><th class="num">Cost</th>';
+  const rowCountEl = document.getElementById('rowCount');
+  const table = document.getElementById('dataTable');
+  const tableWrap = document.querySelector('.table-wrap');
+  const tbody = table.querySelector('tbody');
 
-  document.querySelector('#dataTable tbody').innerHTML = rows.map(r => {
-    const typ = r[3], amt = Number(r[4]), price = Number(r[5]), cost = Number(r[6]);
-    return `<tr>
-      <td>${r[0]}</td><td>${r[1]}</td><td>${r[2]||'—'}</td><td>${typ}</td>
-      <td class="num">${typ==='request_count' ? fmtNum(amt) : fmtTok(amt)}</td>
-      <td class="num">${price > 0 ? '$'+price.toExponential(3) : '—'}</td>
-      <td class="num">${fmtUSD(cost)}</td>
-    </tr>`;
-  }).join('');
+  // Set headers
+  table.querySelector('thead tr').innerHTML = '<th>Date</th><th>Model</th><th>API Key</th><th>Type</th><th class="num">Amount</th><th class="num">Unit Price</th><th class="num">Cost</th>';
+
+  if (!rows.length) {
+    _destroyVScroll();
+    tableWrap.classList.remove('virtual-scroll');
+    table.style.display = '';
+    tbody.style.display = '';
+    tbody.style.position = '';
+    tbody.style.overflow = '';
+    tbody.style.height = '';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:12px;color:var(--text-dim)">No data</td></tr>';
+    rowCountEl.textContent = '(0 rows)';
+    return;
+  }
+
+  rowCountEl.textContent = `(${rows.length} rows)`;
+
+  if (rows.length > 500) {
+    // Use virtual scrolling for large datasets
+    _initVScroll(rows, table, tableWrap);
+  } else {
+    // Small dataset: render all rows directly
+    _destroyVScroll();
+    tableWrap.classList.remove('virtual-scroll');
+    table.style.display = '';
+    tbody.style.display = '';
+    tbody.style.position = '';
+    tbody.style.overflow = '';
+    tbody.style.height = '';
+    tbody.innerHTML = rows.map(r => {
+      const typ = r[3], amt = Number(r[4]), price = Number(r[5]), cost = Number(r[6]);
+      return `<tr>
+        <td>${r[0]}</td><td>${r[1]}</td><td>${r[2]||'\u2014'}</td><td>${typ}</td>
+        <td class="num">${typ==='request_count' ? fmtNum(amt) : fmtTok(amt)}</td>
+        <td class="num">${price > 0 ? '$'+price.toExponential(3) : '\u2014'}</td>
+        <td class="num">${fmtUSD(cost)}</td>
+      </tr>`;
+    }).join('');
+  }
 }
 
-// ── Switch Workspace ──
+// -- Switch Workspace --
 async function switchWorkspace(id) {
   activeWsId = id;
   document.getElementById('wsSelect').value = id;
@@ -1061,6 +1309,7 @@ async function switchWorkspace(id) {
     document.getElementById('noWs').style.display = 'none';
     document.getElementById('activeContent').style.display = 'block';
     Object.values(charts).forEach(c => c.destroy()); charts = {};
+    _destroyVScroll();
     await refreshAll();
   } else {
     document.getElementById('noWs').style.display = 'block';
@@ -1081,7 +1330,7 @@ function refreshWsList() {
   sel.value = activeWsId || '';
 }
 
-// ── Modal ──
+// -- Modal --
 let modalCallback = null;
 function showModal(title, placeholder, cb) {
   document.getElementById('modalTitle').textContent = title;
@@ -1093,7 +1342,7 @@ function showModal(title, placeholder, cb) {
 }
 function hideModal() { document.getElementById('modalOverlay').classList.remove('show'); modalCallback = null; }
 
-// ── Event Bindings ──
+// -- Event Bindings --
 document.getElementById('wsSelect').addEventListener('change', function() { switchWorkspace(this.value); });
 document.getElementById('wsNewBtn').addEventListener('click', () => {
   showModal('Create Workspace', 'e.g. Personal, Work, Team', (name) => {
@@ -1167,7 +1416,7 @@ document.getElementById('exportAllBtn').addEventListener('click', () => {
   toast('Full raw data exported');
 });
 
-// ── Init ──
+// -- Init --
 async function init() {
   try {
     SQL = await initSqlJs({ locateFile: f => `https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/${f}` });
