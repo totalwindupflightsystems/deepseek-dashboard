@@ -2,13 +2,11 @@
 
 ## Active
 
-*No active tasks remaining.*
-
-## Backlog
-
-### P5: Token pricing calculator
+### P4: Token pricing calculator
 - Add a section where users can input custom token prices and compute costs
 - Useful if DeepSeek changes pricing and export data is stale
+
+## Backlog
 
 ### P6: Mobile refinements
 - Swipe to dismiss toast, touch-friendly chart interactions
