@@ -2,11 +2,6 @@
 
 ## Active
 
-### P3: Virtual scrolling for large data
-- When raw data table exceeds 500 rows, implement virtual scrolling
-- Only render visible rows + buffer, recycle DOM nodes
-- Maintain search/filter functionality
-
 ### P5: Dark/light theme toggle
 - Add theme switcher in header, persist choice in localStorage
 - Light theme with appropriate colors
@@ -22,6 +17,7 @@
 - Bottom sheet for filters on narrow screens
 
 ## Completed
+- ✅ P3: Virtual scrolling for large data — pool of ~40 recycled DOM nodes, rAF-throttled scroll, 500-row threshold (commit `12dd2f8`)
 - ✅ P2: Multiple file upload support — drag multiple ZIPs, sequential processing with per-file progress, error resilience, multi-select file picker (commit `35edc1d`)
 - ✅ Single-file HTML dashboard with Chart.js + JSZip
 - ✅ sql.js persistence via IndexedDB
