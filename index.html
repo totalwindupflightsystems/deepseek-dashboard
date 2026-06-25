@@ -82,6 +82,11 @@ header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-bright); lett
 .chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
 .chart-card.wide { grid-column: 1 / -1; }
 .chart-card h3 { font-size: 0.85rem; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+.chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.chart-header h3 { margin-bottom: 0; }
+.chart-dl-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: var(--radius-sm); padding: 2px 6px; cursor: pointer; font-size: 14px; line-height: 1; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
+.chart-dl-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+.chart-dl-btn:active { transform: scale(0.95); }
 .chart-card .chart-wrap { position: relative; width: 100%; }
 .chart-card .chart-wrap canvas { width: 100% !important; }
 
@@ -221,12 +226,12 @@ tr:hover td { background: var(--bg-card-hover); }
 
     <!-- Charts -->
     <div class="chart-grid" id="chartGrid">
-      <div class="chart-card wide"><h3>Token Usage Over Time</h3><div class="chart-wrap"><canvas id="cTokens"></canvas></div></div>
-      <div class="chart-card"><h3>Daily Spend by Model</h3><div class="chart-wrap"><canvas id="cSpend"></canvas></div></div>
-      <div class="chart-card"><h3>Per-Model Breakdown</h3><div class="chart-wrap"><canvas id="cModelPie"></canvas></div></div>
-      <div class="chart-card"><h3>Prompt vs Completion</h3><div class="chart-wrap"><canvas id="cRatio"></canvas></div></div>
+      <div class="chart-card wide"><div class="chart-header"><h3>Token Usage Over Time</h3><button class="chart-dl-btn" data-chart="tokens" data-type="token-usage" title="Download PNG">⬇</button></div><div class="chart-wrap"><canvas id="cTokens"></canvas></div></div>
+      <div class="chart-card"><div class="chart-header"><h3>Daily Spend by Model</h3><button class="chart-dl-btn" data-chart="spend" data-type="daily-spend" title="Download PNG">⬇</button></div><div class="chart-wrap"><canvas id="cSpend"></canvas></div></div>
+      <div class="chart-card"><div class="chart-header"><h3>Per-Model Breakdown</h3><button class="chart-dl-btn" data-chart="modelPie" data-type="per-model" title="Download PNG">⬇</button></div><div class="chart-wrap"><canvas id="cModelPie"></canvas></div></div>
+      <div class="chart-card"><div class="chart-header"><h3>Prompt vs Completion</h3><button class="chart-dl-btn" data-chart="ratio" data-type="prompt-vs-completion" title="Download PNG">⬇</button></div><div class="chart-wrap"><canvas id="cRatio"></canvas></div></div>
       <div class="chart-card"><h3>Top 10 Spend Days</h3><ul class="spend-list" id="topSpend"></ul></div>
-      <div class="chart-card"><h3>Per-Key Spend</h3><div class="chart-wrap"><canvas id="cKey"></canvas></div></div>
+      <div class="chart-card"><div class="chart-header"><h3>Per-Key Spend</h3><button class="chart-dl-btn" data-chart="key" data-type="per-key" title="Download PNG">⬇</button></div><div class="chart-wrap"><canvas id="cKey"></canvas></div></div>
     </div>
 
     <!-- Raw Data -->
@@ -260,6 +265,7 @@ let SQL = null;
 let db = null;
 let activeWsId = null;
 let charts = {};
+let _currentDays = [];
 let orData = null;  // OpenRouter comparison data
 const IDB_NAME = 'deepseek-dashboard';
 const IDB_STORE = 'sqlite-db';
@@ -669,6 +675,19 @@ function clearOROverlay() {
 // ── Rendering ──
 function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
 
+function downloadChart(chartKey, chartType) {
+  const chart = charts[chartKey];
+  if (!chart) return;
+  const days = _currentDays;
+  const startDate = days.length ? (days[0]?.date || 'unknown') : 'unknown';
+  const endDate = days.length ? (days[days.length-1]?.date || 'unknown') : 'unknown';
+  const url = chart.toBase64Image('image/png', 1);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${chartType}_${startDate}_${endDate}.png`;
+  a.click();
+}
+
 let refreshTimeout;
 async function refreshAll() {
   clearTimeout(refreshTimeout);
@@ -677,6 +696,7 @@ async function refreshAll() {
   const modelFilter = document.getElementById('modelSelect').value || 'all';
 
   const days = getDailyData(period, modelFilter);
+  _currentDays = days;
   if (!days.length) {
     document.getElementById('kpiGrid').innerHTML = '<div style="color:var(--text-dim);padding:20px">No data yet — drag in a DeepSeek usage ZIP</div>';
     return;
@@ -715,6 +735,11 @@ async function refreshAll() {
   renderRatioChart(days);
   renderTopSpend(days);
   renderKeyChart(days);
+
+  // Wire up chart download buttons
+  document.querySelectorAll('.chart-dl-btn').forEach(btn => {
+    btn.onclick = () => downloadChart(btn.dataset.chart, btn.dataset.type);
+  });
 
   // OpenRouter comparison KPI
   if (orData && typeof orData === 'object') {
