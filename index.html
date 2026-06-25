@@ -413,7 +413,81 @@ function parseCSV(text) {
   return rows;
 }
 
-// ── Upload Processing ──
+// ── Core file processing (no UI, no refreshAll) ──
+async function _processSingleFile(file) {
+  const zip = await JSZip.loadAsync(file);
+  let amountRows = [], costRows = [];
+
+  for (const [name, entry] of Object.entries(zip.files)) {
+    if (entry.dir) continue;
+    const text = await entry.async('text');
+    if (name.startsWith('amount-')) amountRows = amountRows.concat(parseCSV(text));
+    else if (name.startsWith('cost-')) costRows = costRows.concat(parseCSV(text));
+    else if (name.endsWith('.csv')) {
+      if (text.includes('input_cache')) amountRows = amountRows.concat(parseCSV(text));
+      else if (text.includes('wallet_type')) costRows = costRows.concat(parseCSV(text));
+    }
+  }
+
+  if (!amountRows.length && !costRows.length) throw new Error('No CSV data found in ZIP');
+
+  // Detect date range
+  const dates = new Set();
+  amountRows.forEach(r => { if (r.utc_date) dates.add(r.utc_date); });
+  costRows.forEach(r => { if (r.utc_date) dates.add(r.utc_date); });
+  const dateArr = [...dates].sort();
+  const dateMin = dateArr[0], dateMax = dateArr[dateArr.length-1];
+
+  // Diff detection: check if we already have data for this date range
+  const existing = db.exec(`SELECT COUNT(*) as cnt FROM uploads WHERE workspace_id = ? AND date_min = ? AND date_max = ?`, [activeWsId, dateMin, dateMax]);
+  const hasExisting = existing.length > 0 && existing[0].values[0][0] > 0;
+
+  const uploadId = genId();
+  const mode = hasExisting ? 'replace' : 'insert';
+  let rowsReplaced = 0;
+
+  if (hasExisting) {
+    // Delete old data for this date range
+    const del1 = db.exec(`DELETE FROM token_usage WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`, [activeWsId, dateMin, dateMax]);
+    const del2 = db.exec(`DELETE FROM cost_daily WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`, [activeWsId, dateMin, dateMax]);
+    rowsReplaced = (del1.length && del1[0].values.length ? del1[0].values[0][0] : 0);
+    // Also remove old upload records for this range
+    db.run('DELETE FROM uploads WHERE workspace_id = ? AND date_min = ? AND date_max = ?', [activeWsId, dateMin, dateMax]);
+  }
+
+  // Insert token rows
+  const stmtTok = db.prepare('INSERT INTO token_usage (workspace_id, utc_date, model, api_key_name, type, price, amount, upload_id) VALUES (?,?,?,?,?,?,?,?)');
+  let tokenCount = 0;
+  for (const r of amountRows) {
+    if (!r.utc_date || !r.model || !r.type || r.type === 'type') continue;
+    stmtTok.run([activeWsId, r.utc_date, r.model, r.api_key_name||'', r.type,
+                 parseFloat(r.price)||0, parseFloat(r.amount)||0, uploadId]);
+    tokenCount++;
+  }
+  stmtTok.free();
+
+  // Insert cost rows
+  const stmtCost = db.prepare('INSERT INTO cost_daily (workspace_id, utc_date, model, cost, currency, upload_id) VALUES (?,?,?,?,?,?)');
+  let costCount = 0;
+  for (const r of costRows) {
+    if (!r.utc_date || !r.model) continue;
+    stmtCost.run([activeWsId, r.utc_date, r.model, parseFloat(r.cost)||0, r.currency||'USD', uploadId]);
+    costCount++;
+  }
+  stmtCost.free();
+
+  // Record upload
+  db.run('INSERT INTO uploads (id, workspace_id, filename, uploaded_at, mode, rows_replaced, rows_added, date_min, date_max) VALUES (?,?,?,?,?,?,?,?,?)',
+    [uploadId, activeWsId, file.name, new Date().toISOString(), mode, rowsReplaced, tokenCount+costCount, dateMin, dateMax]);
+
+  // Update workspace
+  db.run('UPDATE workspaces SET last_upload_at = ? WHERE id = ?', [new Date().toISOString(), activeWsId]);
+
+  await saveDB();
+  return { success: true, message: `${mode === 'replace' ? 'Updated' : 'Added'} ${fmtNum(tokenCount)} rows · ${dateMin} → ${dateMax}`, file: file.name };
+}
+
+// ── Upload Processing (single file, backward compatible) ──
 async function handleUpload(file) {
   if (!file.name.endsWith('.zip')) { toast('Please drop a .zip file', true); return; }
   if (!activeWsId) { toast('Create a workspace first', true); return; }
@@ -423,76 +497,8 @@ async function handleUpload(file) {
   dz.querySelector('.drop-title').textContent = 'Processing…';
 
   try {
-    const zip = await JSZip.loadAsync(file);
-    let amountRows = [], costRows = [];
-
-    for (const [name, entry] of Object.entries(zip.files)) {
-      if (entry.dir) continue;
-      const text = await entry.async('text');
-      if (name.startsWith('amount-')) amountRows = amountRows.concat(parseCSV(text));
-      else if (name.startsWith('cost-')) costRows = costRows.concat(parseCSV(text));
-      else if (name.endsWith('.csv')) {
-        if (text.includes('input_cache')) amountRows = amountRows.concat(parseCSV(text));
-        else if (text.includes('wallet_type')) costRows = costRows.concat(parseCSV(text));
-      }
-    }
-
-    if (!amountRows.length && !costRows.length) throw new Error('No CSV data found in ZIP');
-
-    // Detect date range
-    const dates = new Set();
-    amountRows.forEach(r => { if (r.utc_date) dates.add(r.utc_date); });
-    costRows.forEach(r => { if (r.utc_date) dates.add(r.utc_date); });
-    const dateArr = [...dates].sort();
-    const dateMin = dateArr[0], dateMax = dateArr[dateArr.length-1];
-
-    // Diff detection: check if we already have data for this date range
-    const existing = db.exec(`SELECT COUNT(*) as cnt FROM uploads WHERE workspace_id = ? AND date_min = ? AND date_max = ?`, [activeWsId, dateMin, dateMax]);
-    const hasExisting = existing.length > 0 && existing[0].values[0][0] > 0;
-
-    const uploadId = genId();
-    const mode = hasExisting ? 'replace' : 'insert';
-    let rowsReplaced = 0;
-
-    if (hasExisting) {
-      // Delete old data for this date range
-      const del1 = db.exec(`DELETE FROM token_usage WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`, [activeWsId, dateMin, dateMax]);
-      const del2 = db.exec(`DELETE FROM cost_daily WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`, [activeWsId, dateMin, dateMax]);
-      rowsReplaced = (del1.length && del1[0].values.length ? del1[0].values[0][0] : 0);
-      // Also remove old upload records for this range
-      db.run('DELETE FROM uploads WHERE workspace_id = ? AND date_min = ? AND date_max = ?', [activeWsId, dateMin, dateMax]);
-    }
-
-    // Insert token rows
-    const stmtTok = db.prepare('INSERT INTO token_usage (workspace_id, utc_date, model, api_key_name, type, price, amount, upload_id) VALUES (?,?,?,?,?,?,?,?)');
-    let tokenCount = 0;
-    for (const r of amountRows) {
-      if (!r.utc_date || !r.model || !r.type || r.type === 'type') continue;
-      stmtTok.run([activeWsId, r.utc_date, r.model, r.api_key_name||'', r.type,
-                   parseFloat(r.price)||0, parseFloat(r.amount)||0, uploadId]);
-      tokenCount++;
-    }
-    stmtTok.free();
-
-    // Insert cost rows
-    const stmtCost = db.prepare('INSERT INTO cost_daily (workspace_id, utc_date, model, cost, currency, upload_id) VALUES (?,?,?,?,?,?)');
-    let costCount = 0;
-    for (const r of costRows) {
-      if (!r.utc_date || !r.model) continue;
-      stmtCost.run([activeWsId, r.utc_date, r.model, parseFloat(r.cost)||0, r.currency||'USD', uploadId]);
-      costCount++;
-    }
-    stmtCost.free();
-
-    // Record upload
-    db.run('INSERT INTO uploads (id, workspace_id, filename, uploaded_at, mode, rows_replaced, rows_added, date_min, date_max) VALUES (?,?,?,?,?,?,?,?,?)',
-      [uploadId, activeWsId, file.name, new Date().toISOString(), mode, rowsReplaced, tokenCount+costCount, dateMin, dateMax]);
-
-    // Update workspace
-    db.run('UPDATE workspaces SET last_upload_at = ? WHERE id = ?', [new Date().toISOString(), activeWsId]);
-
-    await saveDB();
-    toast(`${mode === 'replace' ? 'Updated' : 'Added'} ${fmtNum(tokenCount)} rows · ${dateMin} → ${dateMax}`);
+    const result = await _processSingleFile(file);
+    toast(result.message);
   } catch(e) {
     toast('Error: ' + e.message, true);
     console.error(e);
@@ -500,6 +506,53 @@ async function handleUpload(file) {
 
   dz.classList.remove('processing');
   dz.querySelector('.drop-title').textContent = 'Drop DeepSeek usage ZIP here';
+  await refreshAll();
+}
+
+// ── Multiple file upload ──
+async function handleMultipleUpload(files) {
+  if (!files || files.length === 0) return;
+  if (!activeWsId) { toast('Create a workspace first', true); return; }
+
+  const dz = document.getElementById('dropZone');
+  dz.classList.add('processing');
+
+  // Filter to only .zip files
+  const fileArray = [];
+  for (let i = 0; i < files.length; i++) {
+    if (files[i].name.endsWith('.zip')) fileArray.push(files[i]);
+  }
+
+  if (fileArray.length === 0) {
+    toast('No .zip files found', true);
+    dz.classList.remove('processing');
+    return;
+  }
+
+  let successCount = 0, failCount = 0;
+
+  for (let i = 0; i < fileArray.length; i++) {
+    const file = fileArray[i];
+    dz.querySelector('.drop-title').textContent = `Processing file ${i+1} of ${fileArray.length}: ${file.name}`;
+
+    try {
+      const result = await _processSingleFile(file);
+      toast(result.message);
+      successCount++;
+    } catch(e) {
+      toast(`Error: ${file.name} — ${e.message}`, true);
+      console.error(e);
+      failCount++;
+    }
+  }
+
+  dz.classList.remove('processing');
+  dz.querySelector('.drop-title').textContent = 'Drop DeepSeek usage ZIP here';
+
+  if (failCount > 0) {
+    toast(`Done: ${successCount} succeeded, ${failCount} failed`);
+  }
+
   await refreshAll();
 }
 
@@ -1084,10 +1137,10 @@ document.getElementById('orClearBtn').addEventListener('click', clearOROverlay);
 const dz = document.getElementById('dropZone');
 dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
 dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
-dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f) handleUpload(f); });
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); if (e.dataTransfer.files.length) handleMultipleUpload(e.dataTransfer.files); });
 dz.addEventListener('click', () => {
-  const inp = document.createElement('input'); inp.type='file'; inp.accept='.zip';
-  inp.onchange = () => { if (inp.files[0]) handleUpload(inp.files[0]); };
+  const inp = document.createElement('input'); inp.type='file'; inp.accept='.zip'; inp.multiple = true;
+  inp.onchange = () => { if (inp.files.length) handleMultipleUpload(inp.files); };
   inp.click();
 });
 
