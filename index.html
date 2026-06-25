@@ -56,6 +56,33 @@ header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-bright); lett
 .modal .btn-row { display: flex; gap: 8px; justify-content: flex-end; }
 .modal .btn-row button { padding: 6px 16px; }
 
+/* Pricing Calculator */
+.pricing-model-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; padding: 8px; background: var(--accent-glow); border-radius: var(--radius-sm); }
+.pricing-model-row .model-label { flex: 0 0 140px; font-family: var(--mono); font-size: 0.78rem; color: var(--text-bright); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pricing-model-row input { width: 120px; background: var(--bg-input); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 8px; font-size: 0.78rem; font-family: var(--mono); text-align: right; }
+.pricing-model-row input:focus { outline: none; border-color: var(--accent); }
+.pricing-model-row .price-label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; min-width: 55px; }
+.pricing-results { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; display: none; }
+.pricing-results.show { display: block; }
+.pricing-results .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.pricing-results .summary-item { background: var(--accent-glow); border-radius: var(--radius-sm); padding: 8px 12px; text-align: center; }
+.pricing-results .summary-item .val { font-size: 1.1rem; font-weight: 700; color: var(--text-bright); font-variant-numeric: tabular-nums; font-family: var(--mono); }
+.pricing-results .summary-item .lbl { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; }
+.pricing-results .summary-item.diff-positive .val { color: var(--red); }
+.pricing-results .summary-item.diff-negative .val { color: var(--green); }
+.pricing-results table { width: 100%; border-collapse: collapse; font-size: 0.75rem; font-family: var(--mono); }
+.pricing-results th { background: var(--bg-card); color: var(--text-dim); font-weight: 600; text-align: left; padding: 5px 8px; border-bottom: 2px solid var(--border); }
+.pricing-results td { padding: 4px 8px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.pricing-results td.num { text-align: right; }
+.pricing-results .diff-pos { color: var(--red); }
+.pricing-results .diff-neg { color: var(--green); }
+@media (max-width: 768px) {
+  .pricing-model-row { flex-wrap: wrap; }
+  .pricing-model-row .model-label { flex: 1 1 100%; }
+  .pricing-model-row input { width: 100%; }
+  .pricing-results .summary { grid-template-columns: 1fr; }
+}
+
 /* Drop Zone */
 .drop-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 32px 24px; text-align: center; transition: all 0.2s; cursor: pointer; margin-bottom: 20px; background: var(--bg-card); }
 .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: var(--accent-glow); }
@@ -218,6 +245,7 @@ tr:hover td { background: var(--bg-card-hover); }
       <select id="keySelect"><option value="all">All Keys</option></select>
       <button class="btn btn-accent" id="exportBtn">Export CSV</button>
       <button class="btn" id="exportAllBtn">Export All Raw</button>
+      <button class="btn" id="pricingBtn">💰 Pricing Calculator</button>
     </div>
 
     <!-- KPI Cards -->
@@ -252,6 +280,29 @@ tr:hover td { background: var(--bg-card-hover); }
       <div class="btn-row">
         <button class="btn" id="modalCancel">Cancel</button>
         <button class="btn btn-accent" id="modalConfirm">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pricing Calculator Modal -->
+  <div class="modal-overlay" id="pricingModalOverlay">
+    <div class="modal" style="max-width: 700px; max-height: 85vh; overflow-y: auto;">
+      <h3>Token Pricing Calculator</h3>
+      <p style="font-size:0.78rem;color:var(--text-dim);margin-bottom:12px">Set custom token prices per model to see "what-if" costs.</p>
+      <div id="pricingModelRows"></div>
+      <div class="pricing-results" id="pricingResults">
+        <div class="summary">
+          <div class="summary-item"><div class="lbl">Original Cost</div><div class="val" id="pricingOrigCost">—</div></div>
+          <div class="summary-item"><div class="lbl">Recalculated Cost</div><div class="val" id="pricingNewCost">—</div></div>
+          <div class="summary-item" id="pricingDiffItem"><div class="lbl">Difference</div><div class="val" id="pricingDiff">—</div></div>
+        </div>
+        <div style="max-height:300px;overflow-y:auto">
+          <table id="pricingBreakdown"><thead><tr><th>Model</th><th class="num">Original</th><th class="num">Recalculated</th><th class="num">Difference</th></tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn" id="pricingCancelBtn">Close</button>
+        <button class="btn btn-accent" id="pricingRecalcBtn">Recalculate</button>
       </div>
     </div>
   </div>
@@ -1243,6 +1294,161 @@ document.getElementById('exportAllBtn').addEventListener('click', () => {
   const blob = new Blob([csv],{type:'text/csv'}); const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href=url; a.download='deepseek-raw-export.csv'; a.click(); URL.revokeObjectURL(url);
   toast('Full raw data exported');
+});
+
+// -- Token Pricing Calculator --
+const PRICING_LS_KEY = 'ds-dash-custom-prices';
+
+function loadCustomPrices() {
+  try { return JSON.parse(localStorage.getItem(PRICING_LS_KEY) || '{}'); } catch(e) { return {}; }
+}
+function saveCustomPrices(prices) {
+  try { localStorage.setItem(PRICING_LS_KEY, JSON.stringify(prices)); } catch(e) {}
+}
+
+function getPricingModels() {
+  if (!activeWsId) return [];
+  const r = db.exec('SELECT DISTINCT model FROM token_usage WHERE workspace_id = ? ORDER BY model', [activeWsId]);
+  return r.length ? r[0].values.map(v => v[0]) : [];
+}
+
+function getAvgPriceForModel(model) {
+  if (!activeWsId) return { input: 0, output: 0, cache_hit: 0 };
+  const prices = { input: 0, output: 0, cache_hit: 0 };
+  const r = db.exec('SELECT type, AVG(price) FROM token_usage WHERE workspace_id = ? AND model = ? AND price > 0 GROUP BY type', [activeWsId, model]);
+  if (r.length) {
+    for (const [typ, avg] of r[0].values) {
+      const val = Number(avg) || 0;
+      if (typ === 'output_tokens') prices.output = val;
+      else if (typ === 'input_cache_hit_tokens') prices.cache_hit = val;
+      else if (typ.startsWith('input')) prices.input = val;
+    }
+  }
+  return prices;
+}
+
+function openPricingCalculator() {
+  if (!activeWsId) { toast('Select a workspace first', true); return; }
+  const models = getPricingModels();
+  if (!models.length) {
+    toast('No data in this workspace — upload some data first', true);
+    return;
+  }
+  const saved = loadCustomPrices();
+  const rowsEl = document.getElementById('pricingModelRows');
+  rowsEl.innerHTML = models.map(m => {
+    const def = getAvgPriceForModel(m);
+    const sp = saved[m] || {};
+    const inp = sp.input !== undefined ? sp.input : def.input;
+    const out = sp.output !== undefined ? sp.output : def.output;
+    const ch = sp.cache_hit !== undefined ? sp.cache_hit : def.cache_hit;
+    return `<div class="pricing-model-row">
+      <span class="model-label" title="${m}">${m}</span>
+      <span class="price-label">Input $/tok</span>
+      <input type="number" step="any" min="0" data-model="${m}" data-ptype="input" value="${inp.toExponential(4)}" placeholder="0">
+      <span class="price-label">Output $/tok</span>
+      <input type="number" step="any" min="0" data-model="${m}" data-ptype="output" value="${out.toExponential(4)}" placeholder="0">
+      <span class="price-label">Cache $/tok</span>
+      <input type="number" step="any" min="0" data-model="${m}" data-ptype="cache_hit" value="${ch.toExponential(4)}" placeholder="0">
+    </div>`;
+  }).join('');
+
+  document.getElementById('pricingResults').classList.remove('show');
+  document.getElementById('pricingModalOverlay').classList.add('show');
+}
+
+function closePricingCalculator() {
+  document.getElementById('pricingModalOverlay').classList.remove('show');
+}
+
+function collectPricesFromInputs() {
+  const prices = {};
+  document.querySelectorAll('#pricingModelRows input').forEach(inp => {
+    const model = inp.dataset.model;
+    const ptype = inp.dataset.ptype;
+    const val = parseFloat(inp.value);
+    if (!prices[model]) prices[model] = { input: 0, output: 0, cache_hit: 0 };
+    prices[model][ptype] = isNaN(val) || val < 0 ? 0 : val;
+  });
+  return prices;
+}
+
+function recalcPricing() {
+  if (!activeWsId) return;
+  const prices = collectPricesFromInputs();
+  saveCustomPrices(prices);
+
+  // Query all non-request_count rows
+  const r = db.exec(`SELECT model, type, amount, price FROM token_usage WHERE workspace_id = ? AND type != 'request_count'`, [activeWsId]);
+  if (!r.length || !r[0].values.length) {
+    toast('No token rows to calculate', true);
+    return;
+  }
+
+  const rows = r[0].values;
+  let totalOrig = 0, totalNew = 0;
+  const byModel = {};  // { model: { orig, new } }
+
+  for (const [model, typ, amount, price] of rows) {
+    const amt = Number(amount) || 0;
+    const origCost = (Number(price) || 0) * amt;
+    totalOrig += origCost;
+
+    const mp = prices[model];
+    let customPrice = 0;
+    if (mp) {
+      if (typ === 'output_tokens') customPrice = mp.output;
+      else if (typ === 'input_cache_hit_tokens') customPrice = mp.cache_hit;
+      else if (typ.startsWith('input')) customPrice = mp.input;
+      // fallback: if no custom price set, use 0
+    }
+    const newCost = customPrice * amt;
+    totalNew += newCost;
+
+    if (!byModel[model]) byModel[model] = { orig: 0, new: 0 };
+    byModel[model].orig += origCost;
+    byModel[model].new += newCost;
+  }
+
+  const diff = totalNew - totalOrig;
+  const pctChange = totalOrig > 0 ? ((diff / totalOrig) * 100).toFixed(1) : '0.0';
+
+  document.getElementById('pricingOrigCost').textContent = fmtUSD(totalOrig);
+  document.getElementById('pricingNewCost').textContent = fmtUSD(totalNew);
+
+  const diffEl = document.getElementById('pricingDiff');
+  diffEl.textContent = (diff >= 0 ? '+' : '') + fmtUSD(diff) + ' (' + (diff >= 0 ? '+' : '') + pctChange + '%)';
+
+  const diffItem = document.getElementById('pricingDiffItem');
+  diffItem.classList.remove('diff-positive', 'diff-negative');
+  if (diff > 0.005) diffItem.classList.add('diff-positive');
+  else if (diff < -0.005) diffItem.classList.add('diff-negative');
+
+  // Per-model breakdown table
+  const tbody = document.querySelector('#pricingBreakdown tbody');
+  const modelEntries = Object.entries(byModel).sort((a, b) => (b[1].new - b[1].orig) - (a[1].new - a[1].orig));
+  tbody.innerHTML = modelEntries.map(([model, costs]) => {
+    const md = costs.new - costs.orig;
+    const mdClass = md > 0.005 ? 'diff-pos' : (md < -0.005 ? 'diff-neg' : '');
+    return `<tr>
+      <td>${model}</td>
+      <td class="num">${fmtUSD(costs.orig)}</td>
+      <td class="num">${fmtUSD(costs.new)}</td>
+      <td class="num ${mdClass}">${md >= 0 ? '+' : ''}${fmtUSD(md)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('pricingResults').classList.add('show');
+}
+
+// Event bindings for pricing calculator
+document.getElementById('pricingBtn').addEventListener('click', openPricingCalculator);
+document.getElementById('pricingCancelBtn').addEventListener('click', closePricingCalculator);
+document.getElementById('pricingRecalcBtn').addEventListener('click', recalcPricing);
+
+// Close pricing modal on overlay click
+document.getElementById('pricingModalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closePricingCalculator();
 });
 
 // -- Theme Toggle --
