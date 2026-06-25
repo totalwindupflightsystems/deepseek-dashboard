@@ -2,9 +2,7 @@
 
 ## Active
 
-### P4: Token pricing calculator
-- Add a section where users can input custom token prices and compute costs
-- Useful if DeepSeek changes pricing and export data is stale
+*No active tasks remaining.*
 
 ## Backlog
 
@@ -13,6 +11,7 @@
 - Bottom sheet for filters on narrow screens
 
 ## Completed
+- ✅ P4: Token pricing calculator — custom per-model prices with what-if cost comparison (commit `cfec1a7`)
 - ✅ P5: Dark/light theme toggle — theme switcher in header, localStorage persistence, light theme CSS variables, flash-prevention inline script (commit `85ff11c`)
 - ✅ P3: Virtual scrolling for large data — pool of ~40 recycled DOM nodes, rAF-throttled scroll, 500-row threshold (commit `12dd2f8`)
 - ✅ P2: Multiple file upload support — drag multiple ZIPs, sequential processing with per-file progress, error resilience, multi-select file picker (commit `35edc1d`)
