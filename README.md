@@ -40,13 +40,22 @@ This dashboard fixes that. Drag in your DeepSeek usage ZIP. Get charts, trends, 
 | **Pricing verification** | Auto-checks export pricing against known rates |
 | **Dark theme** | Responsive, mobile-friendly |
 
+## Live Demo
+
+**🔗 [totalwindupflightsystems.github.io/deepseek-dashboard](https://totalwindupflightsystems.github.io/deepseek-dashboard/)**
+
+Just open the link — no install, no signup, nothing. Your data stays in your browser.
+
 ## How to Use
 
 1. Go to [DeepSeek Platform → Usage](https://platform.deepseek.com/usage)
 2. Pick a month → Click **Export** → Download the ZIP
-3. Open `index.html` in any browser
-4. Drag the ZIP file onto the page
-5. That's it. Dashboard renders instantly.
+3. Open the dashboard (link above, or download `index.html` and open locally)
+4. Create a workspace (e.g. "Personal", "Work")
+5. Drag the ZIP file onto the page
+6. That's it. Upload again anytime — diffs are managed automatically.
+
+**Multi-account?** Create multiple workspaces and switch between them. Data is isolated per workspace.
 
 ## How to Verify the Code
 
