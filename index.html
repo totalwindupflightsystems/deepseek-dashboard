@@ -546,7 +546,7 @@ async function handleMultipleUpload(files) {
 
 // -- Data Querying --
 function queryPeriod(period) {
-  if (period === 'all') return ['1','1'];
+  if (period === 'all') return ['2000-01-01', '2099-12-31'];
   if (period === '7d') {
     const d = new Date(); d.setDate(d.getDate()-7);
     return [d.toISOString().slice(0,10), new Date().toISOString().slice(0,10)];
