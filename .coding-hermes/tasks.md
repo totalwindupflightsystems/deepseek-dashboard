@@ -2,13 +2,13 @@
 
 ## Active
 
-*No active tasks remaining.*
-
-## Backlog
-
 ### P6: Mobile refinements
 - Swipe to dismiss toast, touch-friendly chart interactions
 - Bottom sheet for filters on narrow screens
+
+## Backlog
+
+*No backlog items remaining.*
 
 ## Completed
 - ✅ P4: Token pricing calculator — custom per-model prices with what-if cost comparison (commit `cfec1a7`)
