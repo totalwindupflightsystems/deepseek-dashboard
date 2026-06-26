@@ -2,15 +2,14 @@
 
 ## Active
 
-### P6: Mobile refinements
-- Swipe to dismiss toast, touch-friendly chart interactions
-- Bottom sheet for filters on narrow screens
+*No active tasks remaining.*
 
 ## Backlog
 
 *No backlog items remaining.*
 
 ## Completed
+- ✅ P6: Mobile refinements — swipe to dismiss toast, bottom sheet for filters (commit `9036365`)
 - ✅ P4: Token pricing calculator — custom per-model prices with what-if cost comparison (commit `cfec1a7`)
 - ✅ P5: Dark/light theme toggle — theme switcher in header, localStorage persistence, light theme CSS variables, flash-prevention inline script (commit `85ff11c`)
 - ✅ P3: Virtual scrolling for large data — pool of ~40 recycled DOM nodes, rAF-throttled scroll, 500-row threshold (commit `12dd2f8`)
