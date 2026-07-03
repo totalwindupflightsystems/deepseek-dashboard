@@ -703,8 +703,10 @@ async function _processSingleFile(file) {
   const dateArr = [...dates].sort();
   const dateMin = dateArr[0], dateMax = dateArr[dateArr.length-1];
 
-  // Diff detection: check if we already have data for this date range
-  const existing = db.exec(`SELECT COUNT(*) as cnt FROM uploads WHERE workspace_id = ? AND date_min = ? AND date_max = ?`, [activeWsId, dateMin, dateMax]);
+  // Diff detection: check for overlapping date ranges (not just exact match)
+  const existing = db.exec(
+    `SELECT COUNT(*) as cnt FROM uploads WHERE workspace_id = ? AND NOT (date_max < ? OR date_min > ?)`,
+    [activeWsId, dateMin, dateMax]);
   const hasExisting = existing.length > 0 && existing[0].values[0][0] > 0;
 
   const uploadId = genId();
@@ -712,12 +714,18 @@ async function _processSingleFile(file) {
   let rowsReplaced = 0;
 
   if (hasExisting) {
-    // Delete old data for this date range
-    const del1 = db.exec(`DELETE FROM token_usage WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`, [activeWsId, dateMin, dateMax]);
-    const del2 = db.exec(`DELETE FROM cost_daily WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`, [activeWsId, dateMin, dateMax]);
-    rowsReplaced = (del1.length && del1[0].values.length ? del1[0].values[0][0] : 0);
-    // Also remove old upload records for this range
-    db.run('DELETE FROM uploads WHERE workspace_id = ? AND date_min = ? AND date_max = ?', [activeWsId, dateMin, dateMax]);
+    // Count existing rows before deleting (SQL.js DELETE returns no rows)
+    const cntBefore = db.exec(
+      `SELECT COUNT(*) as cnt FROM token_usage WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`,
+      [activeWsId, dateMin, dateMax]);
+    rowsReplaced = (cntBefore.length && cntBefore[0].values.length ? cntBefore[0].values[0][0] : 0);
+
+    // Delete old data for the overlapping date range
+    db.exec(`DELETE FROM token_usage WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`, [activeWsId, dateMin, dateMax]);
+    db.exec(`DELETE FROM cost_daily WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`, [activeWsId, dateMin, dateMax]);
+    // Remove old upload records that overlap with this date range
+    db.run(`DELETE FROM uploads WHERE workspace_id = ? AND NOT (date_max < ? OR date_min > ?)`,
+      [activeWsId, dateMin, dateMax]);
   }
 
   // Insert token rows
