@@ -2,16 +2,6 @@
 
 ## Active
 
-### [P1] Clarify input vs output token usage visuals
-**Context:** The dashboard charts mix input tokens (cache hit + cache miss) and output tokens without clear visual distinction. Users can't easily see input vs output split.
-
-**Requirements:**
-1. In "Token Usage Over Time" chart: make clear which lines are INPUT (cache hit + cache miss combined into one INPUT line, or keep separate but group) vs OUTPUT. Add a stacked area or clearer legend.
-2. In "Prompt vs Completion" chart: rename to "Input vs Output Tokens" for clarity. Ensure the labels say "Input Tokens" and "Output Tokens" not prompt/completion.
-3. In KPI cards at top: clearly distinguish input from output token counts. Add an "Output / Input" ratio percentage if useful.
-4. In raw data table: ensure the "type" column values are human-readable (e.g., "Input (Cache Hit)" instead of "input_cache_hit_tokens").
-5. The spend chart should show cost split between input and output.
-
 ### [P2] Color alignment and chart polish
 **Context:** Chart colors need to be consistent and professional. The current dark theme should have colors that pop against #0d1117 background with good contrast.
 
@@ -50,7 +40,7 @@
 
 ## Completed
 
-- ✅ Dedup fix: overlapping date range detection (commit 6163283)
+- ✅ P1: Clarify input vs output token usage visuals — combine input tokens on time chart, rename prompt/completion chart, split KPIs, human-readable table types, input/output cost split on spend chart (commit f671695)
 - ✅ P6: Mobile refinements — swipe to dismiss toast, bottom sheet for filters (commit 9036365)
 - ✅ P4: Token pricing calculator (commit cfec1a7)
 - ✅ P5: Dark/light theme toggle (commit 85ff11c)
