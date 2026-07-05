@@ -2,7 +2,6 @@
 
 ## Active
 
-- P1: Model distribution over time (stacked area chart)
 
 ## Backlog
 
@@ -28,5 +27,6 @@
 - ✅ KPI cards + 6 chart panels
 - ✅ CSV export (aggregated + raw)
 - ✅ GitHub Pages deployment
+- ✅ P1: Model distribution over time (stacked area chart) — added Model Distribution Over Time wide chart, renderModelDistChart function, destroy handling and PNG download (commit b27bbff)
 - ✅ P1: OpenRouter comparison overlay — fetch OR Analytics API data, overlay dashed usage curves on Token and Spend charts, handle API errors, comparison KPI card (commit a2c5e71)
 - ✅ P2: Chart export as PNG — download button on each Chart.js chart card, toBase64Image(), filename includes chart type + date range
