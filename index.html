@@ -327,6 +327,7 @@ tr:hover td { background: var(--bg-card-hover); }
     <!-- Charts -->
     <div class="chart-grid" id="chartGrid">
       <div class="chart-card wide"><div class="chart-header"><h3>Token Usage Over Time</h3><button class="chart-dl-btn" data-chart="tokens" data-type="token-usage" title="Download PNG">&#11015;</button></div><div class="chart-wrap"><canvas id="cTokens"></canvas></div></div>
+      <div class="chart-card wide"><div class="chart-header"><h3>Model Distribution Over Time</h3><button class="chart-dl-btn" data-chart="modelDist" data-type="model-distribution" title="Download PNG">&#11015;</button></div><div class="chart-wrap"><canvas id="cModelDist"></canvas></div></div>
       <div class="chart-card"><div class="chart-header"><h3>Daily Spend by Model</h3><button class="chart-dl-btn" data-chart="spend" data-type="daily-spend" title="Download PNG">&#11015;</button></div><div class="chart-wrap"><canvas id="cSpend"></canvas></div></div>
       <div class="chart-card"><div class="chart-header"><h3>Per-Model Breakdown</h3><button class="chart-dl-btn" data-chart="modelPie" data-type="per-model" title="Download PNG">&#11015;</button></div><div class="chart-wrap"><canvas id="cModelPie"></canvas></div></div>
       <div class="chart-card"><div class="chart-header"><h3>Input vs Output Tokens</h3><button class="chart-dl-btn" data-chart="ratio" data-type="input-vs-output" title="Download PNG">&#11015;</button></div><div class="chart-wrap"><canvas id="cRatio"></canvas></div></div>
@@ -967,7 +968,7 @@ async function refreshAll() {
   _currentDays = days;
   if (!days.length) {
     document.getElementById('kpiGrid').innerHTML = '<div style="color:var(--text-dim);padding:20px">No data yet — drag in a DeepSeek usage ZIP</div>';
-    ['tokens','spend','modelPie','ratio','key'].forEach(k => destroyChart(k));
+    ['tokens','spend','modelPie','ratio','key','modelDist'].forEach(k => destroyChart(k));
     document.getElementById('topSpend').innerHTML = '';
     return;
   }
@@ -1004,6 +1005,7 @@ async function refreshAll() {
 
   // Charts
   renderTokenChart(days);
+  renderModelDistChart(days);
   renderSpendChart(days);
   renderModelPie(days);
   renderRatioChart(days);
@@ -1092,6 +1094,47 @@ function renderTokenChart(days) {
       interaction: { mode: 'index', intersect: false },
       plugins: { legend: chartLegendOptions(), tooltip: { ...chartTooltipOptions(), callbacks: { label: ctx => ctx.dataset.label + ': ' + fmtTok(ctx.parsed.y) + ' tokens' } } },
       scales: chartScalesOptions('Tokens', v => fmtTok(v))
+    }
+  });
+}
+
+function renderModelDistChart(days) {
+  destroyChart('modelDist');
+  const ctx = document.getElementById('cModelDist').getContext('2d');
+  const labels = days.map(d => fmtDate(d.date));
+  const models = [...new Set(days.flatMap(d => Object.keys(d.byModel)))];
+  const baseColors = ['#4c6ef5','#39d2c0','#a371f7','#d2991d','#f85149','#3fb950','#f778ba','#79c0ff','#d2a8ff','#ffa657','#56d364','#db6d28'];
+
+  const datasets = models.map((m, i) => {
+    const base = baseColors[i % baseColors.length];
+    return {
+      label: m,
+      data: days.map(d => d.byModel[m]?.tokens || 0),
+      borderColor: base,
+      backgroundColor: base + '40',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      hoverBorderWidth: 2,
+    };
+  });
+
+  const tick = { color: chartTickColor(), font: { size: chartFontSize() } };
+  charts.modelDist = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      ...chartCommonOptions(), aspectRatio: 2.2,
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
+      plugins: {
+        legend: chartLegendOptions(),
+        tooltip: { ...chartTooltipOptions(), callbacks: { label: ctx => ctx.dataset.label + ': ' + fmtTok(ctx.parsed.y) + ' tokens' } }
+      },
+      scales: {
+        x: { stacked: true, ticks: { ...tick, maxTicksLimit: 14 }, grid: { color: chartGridColor() } },
+        y: { stacked: true, ticks: { ...tick, callback: v => fmtTok(v) }, grid: { color: chartGridColor() }, title: { display: true, text: 'Tokens', color: chartTickColor(), font: { size: chartFontSize() } } }
+      }
     }
   });
 }
