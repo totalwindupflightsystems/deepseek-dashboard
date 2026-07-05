@@ -2,9 +2,10 @@
 
 ## Active
 
+- P1: Model distribution over time (stacked area chart)
+
 ## Backlog
 
-- Model distribution over time (stacked area chart)
 - Anomaly detection / spike alerts
 - Per-hour granularity option
 - Rate limit monitoring panel
