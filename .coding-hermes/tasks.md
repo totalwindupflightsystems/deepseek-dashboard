@@ -2,21 +2,6 @@
 
 ## Active
 
-### [P2] Color alignment and chart polish
-**Context:** Chart colors need to be consistent and professional. The current dark theme should have colors that pop against #0d1117 background with good contrast.
-
-**Requirements:**
-1. Establish a consistent color palette across all 6 charts:
-   - INPUT tokens: a warm/blue color (#4c6ef5 or similar)
-   - OUTPUT tokens: a complementary accent (#39d2c0 or similar)
-   - Spend: orange/gold (#d2991d)
-   - Models: distinct hues that work on dark bg
-2. Fix chart styling: proper grid colors (#21262d), axis label visibility, tooltip formatting
-3. KPI cards: add subtle color accents matching the chart palette
-4. Ensure colorblind-friendly palette (avoid red-green only distinctions)
-5. Chart titles should be more descriptive
-6. The "No data yet" state on charts should show proper empty-state placeholders
-
 ### [P3] Visual polish and desktop/mobile refinements
 **Context:** "graphs look cheap on desktop" — need professional chart styling.
 

@@ -38,7 +38,7 @@ header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-bright); lett
 
 /* Workspace Selector */
 .ws-bar { display: flex; align-items: center; gap: 8px; }
-.ws-bar select { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; font-size: 0.85rem; font-family: var(--font); max-width: 200px; }
+.ws-bar select { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 28px 6px 12px; font-size: 0.85rem; font-family: var(--font); width: auto; max-width: min(320px, 50vw); text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
 .ws-bar select:focus { outline: none; border-color: var(--accent); }
 .btn-sm { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 10px; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; font-family: var(--font); white-space: nowrap; }
 .btn-sm:hover { border-color: var(--accent); background: var(--bg-card-hover); }
@@ -88,7 +88,8 @@ header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-bright); lett
 .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: var(--accent-glow); }
 .drop-zone svg { width: 40px; height: 40px; margin-bottom: 8px; color: var(--text-dim); }
 .drop-zone .drop-title { font-weight: 600; color: var(--text-bright); margin-bottom: 2px; }
-.drop-zone .drop-sub { font-size: 0.8rem; color: var(--text-dim); }
+.drop-zone .drop-sub { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 4px; }
+.drop-zone .drop-help { font-size: 0.7rem; color: var(--text-dim); opacity: 0.85; max-width: 520px; margin: 0 auto; line-height: 1.35; }
 .drop-zone.processing { border-color: var(--orange); background: rgba(210,153,29,0.05); pointer-events: none; }
 
 /* No workspace state */
@@ -111,6 +112,11 @@ header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-bright); lett
 .kpi-card .label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
 .kpi-card .value { font-size: 1.5rem; font-weight: 700; color: var(--text-bright); font-variant-numeric: tabular-nums; }
 .kpi-card .sub { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; }
+.kpi-card.tokens { border-left: 3px solid var(--accent); }
+.kpi-card.output { border-left: 3px solid var(--cyan); }
+.kpi-card.spend { border-left: 3px solid var(--orange); }
+.kpi-card.models { border-left: 3px solid var(--purple); }
+.kpi-card.keys { border-left: 3px solid var(--green); }
 
 /* Chart Grid */
 .chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 20px; }
@@ -128,6 +134,9 @@ header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-bright); lett
 
 .chart-card .chart-wrap { position: relative; width: 100%; }
 .chart-card .chart-wrap canvas { width: 100% !important; }
+
+/* Drop-zone code snippets */
+.drop-zone code { background: var(--bg-input); color: var(--text-bright); padding: 1px 4px; border-radius: var(--radius-sm); font-family: var(--mono); font-size: 0.72rem; }
 
 /* Top Spenders List */
 .spend-list { list-style: none; }
@@ -149,7 +158,18 @@ header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-bright); lett
 .data-section { margin-top: 20px; }
 .data-section h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
 .data-section .row-count { font-size: 0.72rem; color: var(--text-dim); font-weight: 400; }
-.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); max-height: 400px; overflow-y: auto; }
+.table-wrap { position: relative; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); max-height: 400px; overflow-y: auto; }
+.table-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 10px;
+  background: linear-gradient(to right, transparent, var(--border));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.table-wrap.can-scroll-right::after { opacity: 1; }
 
 /* Virtual scroll table layout */
 .table-wrap.virtual-scroll table { display: flex; flex-direction: column; }
@@ -179,12 +199,10 @@ tr:hover td { background: var(--bg-card-hover); }
 .filters-toggle-btn { display: none; }
 
 /* Bottom sheet overlay */
-.bottom-sheet-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 40; opacity: 0; transition: opacity 0.3s; }
-.bottom-sheet-overlay.show { display: block; opacity: 1; }
+.bottom-sheet-overlay { display: none !important; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 40; opacity: 0; transition: opacity 0.3s; }
 
-/* Bottom sheet drawer */
-.bottom-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-card); border-top: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; z-index: 41; transform: translateY(100%); transition: transform 0.3s ease; max-height: 85vh; display: flex; flex-direction: column; }
-.bottom-sheet.open { transform: translateY(0); }
+/* Bottom sheet drawer (hidden by default; only shown on mobile) */
+.bottom-sheet { display: none !important; position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-card); border-top: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; z-index: 41; transform: translateY(100%); transition: transform 0.3s ease; max-height: 85vh; flex-direction: column; }
 
 /* Drag handle bar */
 .bottom-sheet-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 10px auto 6px; cursor: grab; flex-shrink: 0; }
@@ -209,6 +227,10 @@ tr:hover td { background: var(--bg-card-hover); }
 
 /* Responsive */
 @media (max-width: 768px) {
+  .bottom-sheet-overlay { display: none !important; }
+  .bottom-sheet-overlay.show { display: block !important; opacity: 1; }
+  .bottom-sheet { display: flex !important; }
+  .bottom-sheet.open { transform: translateY(0); }
   .container { padding: 10px; }
   .chart-grid { grid-template-columns: 1fr; }
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
@@ -277,6 +299,7 @@ tr:hover td { background: var(--bg-card-hover); }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0L8 8m4-4l4 4M4 20h16"/></svg>
       <div class="drop-title">Drop DeepSeek usage ZIP here</div>
       <div class="drop-sub">or click to select &mdash; manages diffs automatically</div>
+      <div class="drop-help">Expected format: a DeepSeek API usage ZIP export containing daily JSON files (e.g. <code>YYYY-MM-DD.json</code> with fields <code>model</code>, <code>input_cache_hit_tokens</code>, <code>input_cache_miss_tokens</code>, <code>output_tokens</code>, <code>request_count</code>, <code>price</code>, and <code>api_key_name</code>).</div>
     </div>
 
     <!-- Upload History -->
@@ -961,11 +984,11 @@ async function refreshAll() {
   const outputPct = totalTokens > 0 ? (totalOutput/totalTokens*100).toFixed(1) : '0.0';
 
   document.getElementById('kpiGrid').innerHTML = `
-    <div class="kpi-card"><div class="label">Total Cost</div><div class="value">${fmtUSD(totalCost)}</div><div class="sub">${days[0]?.date||'—'} → ${days[days.length-1]?.date||'—'}</div></div>
-    <div class="kpi-card"><div class="label">Input Tokens</div><div class="value" style="color:var(--accent)">${fmtTok(totalPrompt)}</div><div class="sub">${inputPct}% of total</div></div>
-    <div class="kpi-card"><div class="label">Output Tokens</div><div class="value" style="color:var(--cyan)">${fmtTok(totalOutput)}</div><div class="sub">${outputPct}% of total</div></div>
-    <div class="kpi-card"><div class="label">Output / Input Ratio</div><div class="value">${ioRatio}</div><div class="sub">${fmtNum(totalRequests)} requests · ~${fmtNum(Math.round(totalRequests/Math.max(days.length,1)))}/day</div></div>
-    <div class="kpi-card"><div class="label">Avg Daily Cost</div><div class="value">${fmtUSD(avgDaily)}</div><div class="sub">${days.length} days of data</div></div>
+    <div class="kpi-card spend"><div class="label">Total Cost</div><div class="value">${fmtUSD(totalCost)}</div><div class="sub">${days[0]?.date||'—'} → ${days[days.length-1]?.date||'—'}</div></div>
+    <div class="kpi-card tokens"><div class="label">Input Tokens</div><div class="value" style="color:var(--accent)">${fmtTok(totalPrompt)}</div><div class="sub">${inputPct}% of total</div></div>
+    <div class="kpi-card output"><div class="label">Output Tokens</div><div class="value" style="color:var(--cyan)">${fmtTok(totalOutput)}</div><div class="sub">${outputPct}% of total</div></div>
+    <div class="kpi-card keys"><div class="label">Output / Input Ratio</div><div class="value">${ioRatio}</div><div class="sub">${fmtNum(totalRequests)} requests · ~${fmtNum(Math.round(totalRequests/Math.max(days.length,1)))}/day</div></div>
+    <div class="kpi-card models"><div class="label">Avg Daily Cost</div><div class="value">${fmtUSD(avgDaily)}</div><div class="sub">${days.length} days of data</div></div>
   `;
 
   // Update period select with available months
@@ -1009,28 +1032,66 @@ async function refreshAll() {
   renderTable(days, modelFilter);
 }
 
+function isMobileChart() { return window.innerWidth <= 768; }
+
+function chartFontSize() { return isMobileChart() ? 8 : 9; }
+function chartGridColor() { return document.documentElement.getAttribute('data-theme') === 'light' ? '#d0d7de' : '#21262d'; }
+function chartTickColor() { return document.documentElement.getAttribute('data-theme') === 'light' ? '#656d76' : '#8b949e'; }
+
+function chartTooltipOptions() {
+  return {
+    backgroundColor: document.documentElement.getAttribute('data-theme') === 'light' ? '#ffffff' : '#161b22',
+    titleColor: document.documentElement.getAttribute('data-theme') === 'light' ? '#1f2328' : '#f0f6fc',
+    bodyColor: document.documentElement.getAttribute('data-theme') === 'light' ? '#24292f' : '#e6edf3',
+    borderColor: document.documentElement.getAttribute('data-theme') === 'light' ? '#d0d7de' : '#30363d',
+    borderWidth: 1,
+    padding: 10,
+    cornerRadius: 6,
+    displayColors: true,
+    titleFont: { size: 12, weight: '600' },
+    bodyFont: { size: 12 }
+  };
+}
+
+function chartLegendOptions() {
+  return { labels: { color: chartTickColor(), usePointStyle: true, padding: 14, font: { size: chartFontSize() } } };
+}
+
+function chartScalesOptions(yTitle, yTickFormatter) {
+  const tick = { color: chartTickColor(), font: { size: chartFontSize() } };
+  return {
+    x: { ticks: { ...tick, maxTicksLimit: 14 }, grid: { color: chartGridColor() } },
+    y: { ticks: { ...tick, callback: yTickFormatter }, grid: { color: chartGridColor() }, title: yTitle ? { display: true, text: yTitle, color: chartTickColor(), font: { size: chartFontSize() } } : undefined }
+  };
+}
+
+function chartCommonOptions() {
+  return {
+    responsive: true,
+    maintainAspectRatio: true,
+    layout: { padding: { left: 4, right: 4, top: 4, bottom: 4 } },
+    animation: { duration: 400 }
+  };
+}
+
 function renderTokenChart(days) {
   destroyChart('tokens');
   const ctx = document.getElementById('cTokens').getContext('2d');
   const inputColor = '#4c6ef5';
   const outputColor = '#39d2c0';
   const datasets = [
-    { label: 'Input Tokens', data: days.map(d => d.cache_hit + d.cache_miss), borderColor: inputColor, backgroundColor: 'rgba(76,110,245,0.15)', fill: true, tension: 0.3, pointRadius: 0 },
-    { label: 'Output Tokens', data: days.map(d => d.output), borderColor: outputColor, backgroundColor: 'rgba(57,210,192,0.12)', fill: true, tension: 0.3, pointRadius: 0 },
+    { label: 'Input Tokens', data: days.map(d => d.cache_hit + d.cache_miss), borderColor: inputColor, backgroundColor: 'rgba(76,110,245,0.15)', fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 4, hoverBorderWidth: 2 },
+    { label: 'Output Tokens', data: days.map(d => d.output), borderColor: outputColor, backgroundColor: 'rgba(57,210,192,0.12)', fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 4, hoverBorderWidth: 2 },
   ];
 
   charts.tokens = new Chart(ctx, {
     type: 'line',
     data: { labels: days.map(d => fmtDate(d.date)), datasets },
     options: {
-      responsive: true, maintainAspectRatio: true, aspectRatio: 2.2,
+      ...chartCommonOptions(), aspectRatio: 2.2,
       interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { labels: { color: '#8b949e', usePointStyle: true, padding: 16, font: {size:10} } },
-        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + fmtTok(ctx.parsed.y) + ' tokens' } } },
-      scales: {
-        x: { ticks: { color: '#8b949e', maxTicksLimit: 14, font: {size:9} }, grid: { color: '#21262d' } },
-        y: { ticks: { color: '#8b949e', callback: v => fmtTok(v), font: {size:9} }, grid: { color: '#21262d' }, title: { display: true, text: 'Tokens', color: '#8b949e' } }
-      }
+      plugins: { legend: chartLegendOptions(), tooltip: { ...chartTooltipOptions(), callbacks: { label: ctx => ctx.dataset.label + ': ' + fmtTok(ctx.parsed.y) + ' tokens' } } },
+      scales: chartScalesOptions('Tokens', v => fmtTok(v))
     }
   });
 }
@@ -1048,28 +1109,33 @@ function renderSpendChart(days) {
       label: m + ' Input Cost',
       data: days.map(d => d.byModel[m]?.input_cost || 0),
       backgroundColor: base,
-      borderRadius: 3,
+      borderRadius: 4,
+      borderSkipped: false,
+      hoverBackgroundColor: base + 'dd',
       stack: 'input'
     });
     datasets.push({
       label: m + ' Output Cost',
       data: days.map(d => d.byModel[m]?.output_cost || 0),
       backgroundColor: base + '88',
-      borderRadius: 3,
+      borderRadius: 4,
+      borderSkipped: false,
+      hoverBackgroundColor: base + 'cc',
       stack: 'output'
     });
   });
 
+  const tick = { color: chartTickColor(), font: { size: chartFontSize() } };
   charts.spend = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets },
     options: {
-      responsive: true, maintainAspectRatio: true, aspectRatio: 1.6,
-      plugins: { legend: { labels: { color: '#8b949e', usePointStyle: true, padding: 8, font: {size:10} } },
-        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + fmtUSD(ctx.parsed.y) } } },
+      ...chartCommonOptions(), aspectRatio: 1.6,
+      plugins: { legend: { labels: { color: chartTickColor(), usePointStyle: true, padding: 8, font: { size: chartFontSize() } } },
+        tooltip: { ...chartTooltipOptions(), callbacks: { label: ctx => ctx.dataset.label + ': ' + fmtUSD(ctx.parsed.y) } } },
       scales: {
-        x: { stacked: true, ticks: { color: '#8b949e', maxTicksLimit: 14, font: {size:9} }, grid: { color: '#21262d' } },
-        y: { stacked: true, ticks: { color: '#8b949e', callback: v => fmtUSD(v), font: {size:9} }, grid: { color: '#21262d' } }
+        x: { stacked: true, ticks: { ...tick, maxTicksLimit: 14 }, grid: { color: chartGridColor() } },
+        y: { stacked: true, ticks: { ...tick, callback: v => fmtUSD(v) }, grid: { color: chartGridColor() } }
       }
     }
   });
@@ -1081,19 +1147,20 @@ function renderModelPie(days) {
   const mc = {}; days.forEach(d => Object.entries(d.byModel).forEach(([m,v]) => mc[m] = (mc[m]||0) + v.cost));
   const entries = Object.entries(mc).sort((a,b) => b[1] - a[1]);
   const colors = ['#4c6ef5','#39d2c0','#a371f7','#d2991d','#f85149','#3fb950'];
+  const borderColor = document.documentElement.getAttribute('data-theme') === 'light' ? '#ffffff' : '#161b22';
   charts.modelPie = new Chart(ctx, {
     type: 'doughnut',
-    data: { labels: entries.map(e => e[0]), datasets: [{ data: entries.map(e => e[1]), backgroundColor: entries.map((_,i) => colors[i%colors.length]), borderColor: '#161b22', borderWidth: 2 }] },
+    data: { labels: entries.map(e => e[0]), datasets: [{ data: entries.map(e => e[1]), backgroundColor: entries.map((_,i) => colors[i%colors.length]), borderColor: borderColor, borderWidth: 2, hoverOffset: 6 }] },
     options: {
-      responsive: true, maintainAspectRatio: true, aspectRatio: 1.4,
+      ...chartCommonOptions(), aspectRatio: 1.4,
       plugins: {
-        legend: { position: 'bottom', labels: { color: '#8b949e', padding: 10, font: {size:9},
+        legend: { position: 'bottom', labels: { color: chartTickColor(), padding: 10, font: { size: chartFontSize() },
           generateLabels: function(chart) {
             return chart.data.labels.map((l,i) => ({ text: l + ' (' + fmtUSD(chart.data.datasets[0].data[i]) + ')',
               fillStyle: chart.data.datasets[0].backgroundColor[i], strokeStyle: chart.data.datasets[0].backgroundColor[i], index: i }));
           }
         }},
-        tooltip: { callbacks: { label: ctx => ctx.label + ': ' + fmtUSD(ctx.parsed) } }
+        tooltip: { ...chartTooltipOptions(), callbacks: { label: ctx => ctx.label + ': ' + fmtUSD(ctx.parsed) } }
       }
     }
   });
@@ -1104,19 +1171,20 @@ function renderRatioChart(days) {
   const tp = days.reduce((s,d) => s + d.prompt, 0);
   const to = days.reduce((s,d) => s + d.output, 0);
   const ctx = document.getElementById('cRatio').getContext('2d');
+  const borderColor = document.documentElement.getAttribute('data-theme') === 'light' ? '#ffffff' : '#161b22';
   charts.ratio = new Chart(ctx, {
     type: 'doughnut',
-    data: { labels: ['Input Tokens', 'Output Tokens'], datasets: [{ data: [tp, to], backgroundColor: ['#4c6ef5','#39d2c0'], borderColor: '#161b22', borderWidth: 2 }] },
+    data: { labels: ['Input Tokens', 'Output Tokens'], datasets: [{ data: [tp, to], backgroundColor: ['#4c6ef5','#39d2c0'], borderColor: borderColor, borderWidth: 2, hoverOffset: 6 }] },
     options: {
-      responsive: true, maintainAspectRatio: true, aspectRatio: 1.4,
+      ...chartCommonOptions(), aspectRatio: 1.4,
       plugins: {
-        legend: { position: 'bottom', labels: { color: '#8b949e', padding: 10, font: {size:9},
+        legend: { position: 'bottom', labels: { color: chartTickColor(), padding: 10, font: { size: chartFontSize() },
           generateLabels: function(chart) {
             return chart.data.labels.map((l,i) => ({ text: l + ': ' + fmtTok(chart.data.datasets[0].data[i]),
               fillStyle: chart.data.datasets[0].backgroundColor[i], strokeStyle: chart.data.datasets[0].backgroundColor[i], index: i }));
           }
         }},
-        tooltip: { callbacks: { label: ctx => ctx.label + ': ' + fmtTok(ctx.parsed) + ' (' + (ctx.parsed/(tp+to)*100).toFixed(1) + '%)' } }
+        tooltip: { ...chartTooltipOptions(), callbacks: { label: ctx => ctx.label + ': ' + fmtTok(ctx.parsed) + ' (' + (ctx.parsed/(tp+to)*100).toFixed(1) + '%)' } }
       }
     }
   });
@@ -1140,15 +1208,16 @@ function renderKeyChart(days) {
   const entries = r[0].values.filter(v => v[0]).slice(0, 12);
   const colors = ['#4c6ef5','#39d2c0','#a371f7','#d2991d','#f85149','#3fb950','#f778ba','#79c0ff','#d2a8ff','#ffa657','#56d364','#db6d28'];
   const ctx = document.getElementById('cKey').getContext('2d');
+  const tick = { color: chartTickColor(), font: { size: chartFontSize() } };
   charts.key = new Chart(ctx, {
     type: 'bar',
-    data: { labels: entries.map(e => e[0]), datasets: [{ data: entries.map(e => Number(e[1])), backgroundColor: entries.map((_,i) => colors[i%colors.length]), borderRadius: 3 }] },
+    data: { labels: entries.map(e => e[0]), datasets: [{ data: entries.map(e => Number(e[1])), backgroundColor: entries.map((_,i) => colors[i%colors.length]), borderRadius: 4, borderSkipped: false, hoverBackgroundColor: entries.map((_,i) => colors[i%colors.length] + 'dd') }] },
     options: {
-      indexAxis: 'y', responsive: true, maintainAspectRatio: true, aspectRatio: 1.4,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtUSD(ctx.parsed.x) } } },
+      ...chartCommonOptions(), indexAxis: 'y', aspectRatio: 1.4,
+      plugins: { legend: { display: false }, tooltip: { ...chartTooltipOptions(), callbacks: { label: ctx => fmtUSD(ctx.parsed.x) } } },
       scales: {
-        x: { ticks: { color: '#8b949e', callback: v => fmtUSD(v), font: {size:9} }, grid: { color: '#21262d' } },
-        y: { ticks: { color: '#8b949e', font: {size:9} }, grid: { display: false } }
+        x: { ticks: { ...tick, callback: v => fmtUSD(v) }, grid: { color: chartGridColor() } },
+        y: { ticks: { ...tick }, grid: { display: false } }
       }
     }
   });
@@ -1417,6 +1486,7 @@ function renderTable(days, modelFilter) {
   if (rows.length > 500) {
     // Use virtual scrolling for large datasets
     _initVScroll(rows, table, tableWrap);
+    updateTableScrollIndicator();
   } else {
     // Small dataset: render all rows directly
     _destroyVScroll();
@@ -1436,8 +1506,18 @@ function renderTable(days, modelFilter) {
         <td class="num">${fmtUSD(cost)}</td>
       </tr>`;
     }).join('');
+    updateTableScrollIndicator();
   }
 }
+
+// Attach table-wrap scroll listener once
+(function() {
+  const wrap = document.querySelector('.table-wrap');
+  if (wrap) {
+    wrap.addEventListener('scroll', updateTableScrollIndicator, { passive: true });
+    window.addEventListener('resize', updateTableScrollIndicator, { passive: true });
+  }
+})();
 
 // -- Switch Workspace --
 async function switchWorkspace(id) {
@@ -1454,6 +1534,14 @@ async function switchWorkspace(id) {
     document.getElementById('noWs').style.display = 'block';
     document.getElementById('activeContent').style.display = 'none';
   }
+}
+
+function updateTableScrollIndicator() {
+  const wrap = document.querySelector('.table-wrap');
+  if (!wrap) return;
+  const hasOverflow = wrap.scrollWidth > wrap.clientWidth + 1;
+  const scrolledToEnd = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 2;
+  wrap.classList.toggle('can-scroll-right', hasOverflow && !scrolledToEnd);
 }
 
 function refreshWsList() {
@@ -1712,6 +1800,8 @@ function setTheme(theme) {
   const btn = document.getElementById('themeToggle');
   if (btn) btn.innerHTML = theme === 'dark' ? '&#9788;' : '&#9790;';
   try { localStorage.setItem('ds-dash-theme', theme); } catch(e) {}
+  // Refresh charts so grid/tooltip colors match the active theme
+  if (Object.values(charts).length) { refreshAll(); }
 }
 function loadTheme() {
   let theme = 'dark';
