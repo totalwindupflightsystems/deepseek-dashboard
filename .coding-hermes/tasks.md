@@ -2,20 +2,6 @@
 
 ## Active
 
-### [P3] Visual polish and desktop/mobile refinements
-**Context:** "graphs look cheap on desktop" — need professional chart styling.
-
-**Requirements:**
-1. Chart.js options polish:
-   - Rounded corners on bars (borderRadius: 4)
-   - Proper font sizes for labels (9px desktop, 8px mobile)
-   - Consistent padding and margins
-   - Hover effects that show clear data points
-2. The "filters panel with × button showing on desktop" — ensure mobile bottom-sheet doesn't leak to desktop
-3. Drop zone: improve the "empty state" with a more helpful message about what data format is expected
-4. Workspace selector: ensure dropdown width accommodates longer names
-5. Raw data table: the cost column gets clipped — add horizontal scroll indicator
-
 ## Backlog
 
 - Model distribution over time (stacked area chart)
@@ -25,6 +11,7 @@
 
 ## Completed
 
+- ✅ P3: Visual polish and desktop/mobile refinements — rounded bar corners, responsive 8/9 px fonts, theme-aware grid/tooltip colors, mobile-only bottom sheet, longer workspace dropdown, drop-zone format help, table scroll indicator (commit 7a3d6e1)
 - ✅ P1: Clarify input vs output token usage visuals — combine input tokens on time chart, rename prompt/completion chart, split KPIs, human-readable table types, input/output cost split on spend chart (commit f671695)
 - ✅ P6: Mobile refinements — swipe to dismiss toast, bottom sheet for filters (commit 9036365)
 - ✅ P4: Token pricing calculator (commit cfec1a7)
