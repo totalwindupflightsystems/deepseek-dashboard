@@ -2,8 +2,6 @@
 
 ## Active
 
-- P2: Anomaly detection / spike alerts (TASK-001) — highlight unusual spikes in daily cost, token usage, and request count; show anomaly panel with list of alerts, threshold controls, and visual markers on charts
-
 ## Backlog
 
 - Per-hour granularity option
@@ -11,6 +9,7 @@
 
 ## Completed
 
+- ✅ P2: Anomaly detection / spike alerts (TASK-001) — z-score based detection, collapsible panel with threshold slider & metric checkboxes, scatter markers on Token/Spend charts, severity levels, localStorage prefs (commit e6a30d0)
 - ✅ P3: Visual polish and desktop/mobile refinements — rounded bar corners, responsive 8/9 px fonts, theme-aware grid/tooltip colors, mobile-only bottom sheet, longer workspace dropdown, drop-zone format help, table scroll indicator (commit 7a3d6e1)
 - ✅ P1: Clarify input vs output token usage visuals — combine input tokens on time chart, rename prompt/completion chart, split KPIs, human-readable table types, input/output cost split on spend chart (commit f671695)
 - ✅ P6: Mobile refinements — swipe to dismiss toast, bottom sheet for filters (commit 9036365)
