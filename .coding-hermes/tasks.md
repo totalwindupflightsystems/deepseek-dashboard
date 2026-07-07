@@ -2,10 +2,10 @@
 
 ## Active
 
+- P2: Anomaly detection / spike alerts (TASK-001) — highlight unusual spikes in daily cost, token usage, and request count; show anomaly panel with list of alerts, threshold controls, and visual markers on charts
 
 ## Backlog
 
-- Anomaly detection / spike alerts
 - Per-hour granularity option
 - Rate limit monitoring panel
 
