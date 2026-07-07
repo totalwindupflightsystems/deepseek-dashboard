@@ -260,6 +260,34 @@ tr:hover td { background: var(--bg-card-hover); }
 .storage-indicator .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
 .storage-indicator .dot.saving { background: var(--orange); }
 .storage-indicator .dot.error { background: var(--red); }
+
+/* Anomaly Detection Panel */
+.anomaly-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; overflow: hidden; }
+.anomaly-toggle { display: flex; align-items: center; gap: 8px; padding: 10px 16px; cursor: pointer; user-select: none; transition: background 0.15s; font-size: 0.85rem; font-weight: 600; }
+.anomaly-toggle:hover { background: var(--bg-card-hover); }
+.anomaly-toggle .a-badge { background: var(--red); color: #fff; font-size: 0.65rem; padding: 1px 7px; border-radius: 9999px; font-weight: 700; min-width: 18px; text-align: center; }
+.anomaly-toggle .a-badge.zero { background: var(--text-dim); }
+.a-chevron { margin-left: auto; font-size: 0.7rem; color: var(--text-dim); transition: transform 0.2s; }
+.a-chevron.collapsed { transform: rotate(-90deg); }
+.anomaly-body { padding: 0 16px 16px; }
+.anomaly-body.collapsed { display: none; }
+.anomaly-controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.anomaly-controls label { font-size: 0.78rem; color: var(--text-dim); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.anomaly-controls label:hover { color: var(--text); }
+.anomaly-controls input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
+.anomaly-controls input[type="range"] { accent-color: var(--red); width: 120px; cursor: pointer; vertical-align: middle; }
+.anomaly-controls .threshold-row { display: flex; align-items: center; gap: 8px; }
+.anomaly-list { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+.anomaly-empty { font-size: 0.78rem; color: var(--text-dim); padding: 8px 0; }
+.anomaly-item { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: var(--radius-sm); font-size: 0.78rem; background: rgba(248,81,73,0.06); border-left: 3px solid var(--red); }
+.anomaly-item .a-date { font-family: var(--mono); font-size: 0.72rem; color: var(--text-dim); min-width: 85px; }
+.anomaly-item .a-metric { font-weight: 600; color: var(--text-bright); min-width: 60px; }
+.anomaly-item .a-value { font-family: var(--mono); color: var(--red); margin-left: auto; }
+.anomaly-item .a-zscore { font-size: 0.68rem; color: var(--text-dim); min-width: 55px; text-align: right; }
+@media (max-width: 768px) {
+  .anomaly-controls { flex-direction: column; align-items: stretch; gap: 10px; }
+  .anomaly-item { flex-wrap: wrap; }
+}
 </style>
 </head>
 <body>
@@ -323,6 +351,29 @@ tr:hover td { background: var(--bg-card-hover); }
 
     <!-- KPI Cards -->
     <div class="kpi-grid" id="kpiGrid"></div>
+
+    <!-- Anomaly Detection Panel -->
+    <div class="anomaly-section" id="anomalySection">
+      <div class="anomaly-toggle" id="anomalyToggle">
+        <span>&#9888; Anomaly Detection</span>
+        <span class="a-badge zero" id="anomalyBadge">0</span>
+        <span class="a-chevron" id="anomalyChevron">&#9660;</span>
+      </div>
+      <div class="anomaly-body" id="anomalyBody">
+        <div class="anomaly-controls">
+          <div class="threshold-row">
+            <label>Threshold: <span id="thresholdLabel">2.0</span>&sigma;</label>
+            <input type="range" id="thresholdSlider" min="1.0" max="5.0" step="0.1" value="2.0">
+          </div>
+          <label><input type="checkbox" id="chkCost" checked> Cost</label>
+          <label><input type="checkbox" id="chkTokens" checked> Tokens</label>
+          <label><input type="checkbox" id="chkRequests" checked> Requests</label>
+        </div>
+        <div class="anomaly-list" id="anomalyList">
+          <div class="anomaly-empty">No anomalies detected</div>
+        </div>
+      </div>
+    </div>
 
     <!-- Charts -->
     <div class="chart-grid" id="chartGrid">
@@ -413,6 +464,8 @@ const DB_KEY = 'main';
 
 // Virtual scroller state
 let _vscroll = null;  // { rows, rowHeight, pool[], topSpacer, bottomSpacer, poolSize, animationId, initialized }
+let _anomalyCache = null; // { items: [], dates: Set(string) }
+const ANOMALY_LS_KEY = 'ds-dash-anomaly-prefs';
 
 // -- Utilities --
 function fmtUSD(n) { return '$' + Number(n).toFixed(2); }
@@ -1012,6 +1065,17 @@ async function refreshAll() {
   renderTopSpend(days);
   renderKeyChart(days);
 
+  // Anomaly Detection
+  const prefs = loadAnomalyPrefs();
+  document.getElementById('thresholdSlider').value = prefs.threshold;
+  document.getElementById('thresholdLabel').textContent = prefs.threshold.toFixed(1);
+  document.getElementById('chkCost').checked = prefs.cost;
+  document.getElementById('chkTokens').checked = prefs.tokens;
+  document.getElementById('chkRequests').checked = prefs.requests;
+  _anomalyCache = detectAnomalies(days, prefs.threshold, prefs);
+  renderAnomalyPanel(_anomalyCache);
+  // Charts will re-render with anomaly markers when charts are drawn above
+
   // Wire up chart download buttons
   document.querySelectorAll('.chart-dl-btn').forEach(btn => {
     btn.onclick = () => downloadChart(btn.dataset.chart, btn.dataset.type);
@@ -1085,6 +1149,27 @@ function renderTokenChart(days) {
     { label: 'Input Tokens', data: days.map(d => d.cache_hit + d.cache_miss), borderColor: inputColor, backgroundColor: 'rgba(76,110,245,0.15)', fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 4, hoverBorderWidth: 2 },
     { label: 'Output Tokens', data: days.map(d => d.output), borderColor: outputColor, backgroundColor: 'rgba(57,210,192,0.12)', fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 4, hoverBorderWidth: 2 },
   ];
+
+  // Anomaly scatter overlay
+  if (_anomalyCache && _anomalyCache.dates.size) {
+    const anomalyPts = [];
+    const maxVal = Math.max(...days.map(d => d.cache_hit + d.cache_miss + d.output)) * 1.08;
+    days.forEach((d, i) => { if (_anomalyCache.dates.has(d.date)) anomalyPts.push({x: i, y: maxVal}); });
+    if (anomalyPts.length) {
+      datasets.push({
+        type: 'scatter',
+        label: 'Anomaly',
+        data: anomalyPts,
+        pointBackgroundColor: 'rgba(248,81,73,0.9)',
+        pointBorderColor: '#f85149',
+        pointRadius: 6,
+        pointHoverRadius: 9,
+        pointBorderWidth: 2,
+        showLine: false,
+        order: 2
+      });
+    }
+  }
 
   charts.tokens = new Chart(ctx, {
     type: 'line',
@@ -1167,6 +1252,27 @@ function renderSpendChart(days) {
       stack: 'output'
     });
   });
+
+  // Anomaly scatter overlay
+  if (_anomalyCache && _anomalyCache.dates.size) {
+    const anomalyPts = [];
+    const maxVal = Math.max(...days.map(d => d.cost_csv || d.cost_tokens)) * 1.08;
+    days.forEach((d, i) => { if (_anomalyCache.dates.has(d.date)) anomalyPts.push({x: i, y: maxVal}); });
+    if (anomalyPts.length) {
+      datasets.push({
+        type: 'scatter',
+        label: 'Anomaly',
+        data: anomalyPts,
+        pointBackgroundColor: 'rgba(248,81,73,0.9)',
+        pointBorderColor: '#f85149',
+        pointRadius: 6,
+        pointHoverRadius: 9,
+        pointBorderWidth: 2,
+        showLine: false,
+        order: 2
+      });
+    }
+  }
 
   const tick = { color: chartTickColor(), font: { size: chartFontSize() } };
   charts.spend = new Chart(ctx, {
@@ -1277,6 +1383,72 @@ function renderUploadHistory() {
     return `<div class="history-item">
       <span class="hi-name">${u.filename} <span style="color:var(--text-dim);font-size:0.7rem">${u.mode === 'replace' ? '(updated)' : '(new)'}</span></span>
       <span class="hi-meta">${fmtNum(u.rows_added)} rows · ${u.date_min}→${u.date_max} · ${timeAgo < 60 ? timeAgo+'m ago' : Math.round(timeAgo/60)+'h ago'}</span>
+    </div>`;
+  }).join('');
+}
+
+// -- Anomaly Detection --
+
+const ANOMALY_DEFAULTS = {threshold: 2.0, cost: true, tokens: true, requests: true};
+
+function loadAnomalyPrefs() {
+  try { return Object.assign({}, ANOMALY_DEFAULTS, JSON.parse(localStorage.getItem(ANOMALY_LS_KEY))); }
+  catch(e) { return Object.assign({}, ANOMALY_DEFAULTS); }
+}
+
+function saveAnomalyPrefs(prefs) {
+  try { localStorage.setItem(ANOMALY_LS_KEY, JSON.stringify(prefs)); } catch(e) {}
+}
+
+function detectAnomalies(days, threshold, metrics) {
+  if (!days || !days.length) return {items: [], dates: new Set()};
+  const items = [];
+  const dates = new Set();
+
+  function _zTest(vals, label) {
+    const n = vals.length;
+    const mean = vals.reduce((s,v) => s+v, 0) / n;
+    const std = Math.sqrt(vals.reduce((s,v) => s+(v-mean)*(v-mean), 0) / n);
+    if (std < 1e-12) return;
+    vals.forEach((v, i) => {
+      const z = Math.abs((v - mean) / std);
+      if (z > threshold) {
+        items.push({date: days[i].date, metric: label, value: v, zScore: z});
+        dates.add(days[i].date);
+      }
+    });
+  }
+
+  if (metrics.cost) _zTest(days.map(d => d.cost_csv || d.cost_tokens), 'Cost');
+  if (metrics.tokens) _zTest(days.map(d => d.total_tokens), 'Tokens');
+  if (metrics.requests) _zTest(days.map(d => d.requests), 'Requests');
+
+  items.sort((a,b) => a.date.localeCompare(b.date) || a.metric.localeCompare(b.metric));
+  return {items, dates};
+}
+
+function renderAnomalyPanel(anomalies) {
+  const badge = document.getElementById('anomalyBadge');
+  const list = document.getElementById('anomalyList');
+  const count = anomalies.items.length;
+
+  badge.textContent = count;
+  badge.classList.toggle('zero', count === 0);
+
+  if (!count) {
+    list.innerHTML = '<div class="anomaly-empty">No anomalies detected</div>';
+    return;
+  }
+
+  list.innerHTML = anomalies.items.map(a => {
+    const label = a.metric === 'Cost' ? fmtUSD(a.value)
+      : a.metric === 'Tokens' ? fmtTok(a.value)
+      : fmtNum(a.value);
+    return `<div class="anomaly-item">
+      <span class="a-date">${a.date}</span>
+      <span class="a-metric">${a.metric}</span>
+      <span class="a-value">${label}</span>
+      <span class="a-zscore">z=${a.zScore.toFixed(2)}</span>
     </div>`;
   }).join('');
 }
@@ -1836,6 +2008,55 @@ document.getElementById('pricingRecalcBtn').addEventListener('click', recalcPric
 document.getElementById('pricingModalOverlay').addEventListener('click', function(e) {
   if (e.target === this) closePricingCalculator();
 });
+
+// -- Anomaly Detection Event Bindings --
+function runAnomalyDetection() {
+  if (!activeWsId || !_currentDays || !_currentDays.length) return;
+  const prefs = {
+    threshold: parseFloat(document.getElementById('thresholdSlider').value),
+    cost: document.getElementById('chkCost').checked,
+    tokens: document.getElementById('chkTokens').checked,
+    requests: document.getElementById('chkRequests').checked
+  };
+  document.getElementById('thresholdLabel').textContent = prefs.threshold.toFixed(1);
+  saveAnomalyPrefs(prefs);
+  _anomalyCache = detectAnomalies(_currentDays, prefs.threshold, prefs);
+  renderAnomalyPanel(_anomalyCache);
+  // Re-render charts that have anomaly overlays
+  renderTokenChart(_currentDays);
+  renderSpendChart(_currentDays);
+}
+
+document.getElementById('thresholdSlider').addEventListener('input', runAnomalyDetection);
+document.getElementById('chkCost').addEventListener('change', runAnomalyDetection);
+document.getElementById('chkTokens').addEventListener('change', runAnomalyDetection);
+document.getElementById('chkRequests').addEventListener('change', runAnomalyDetection);
+
+// Panel collapse toggle
+(function() {
+  const toggle = document.getElementById('anomalyToggle');
+  const body = document.getElementById('anomalyBody');
+  const chevron = document.getElementById('anomalyChevron');
+  let collapsed = window.innerWidth <= 768;
+  if (collapsed) { body.classList.add('collapsed'); chevron.classList.add('collapsed'); }
+  toggle.addEventListener('click', function() {
+    collapsed = !collapsed;
+    body.classList.toggle('collapsed', collapsed);
+    chevron.classList.toggle('collapsed', collapsed);
+  });
+  // Uncollapse on wider screens
+  window.addEventListener('resize', function() {
+    if (window.innerWidth > 768 && collapsed) {
+      collapsed = false;
+      body.classList.remove('collapsed');
+      chevron.classList.remove('collapsed');
+    } else if (window.innerWidth <= 768 && !collapsed) {
+      collapsed = true;
+      body.classList.add('collapsed');
+      chevron.classList.add('collapsed');
+    }
+  });
+})();
 
 // -- Theme Toggle --
 function setTheme(theme) {
