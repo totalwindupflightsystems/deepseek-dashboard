@@ -340,6 +340,8 @@ tr:hover td { background: var(--bg-card-hover); }
     <div class="controls" id="controls">
       <label>Period:</label>
       <select id="periodSelect"><option value="all">All Time</option></select>
+      <label>Granularity:</label>
+      <select id="granularitySelect"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select>
       <label>Model:</label>
       <select id="modelSelect"><option value="all">All Models</option></select>
       <label>Key:</label>
@@ -458,6 +460,7 @@ let db = null;
 let activeWsId = null;
 let charts = {};
 let _currentDays = [];
+let _groupedDays = [];
 const IDB_NAME = 'deepseek-dashboard';
 const IDB_STORE = 'sqlite-db';
 const DB_KEY = 'main';
@@ -979,6 +982,63 @@ function getDailyData(period, model) {
   return Object.values(days).sort((a,b) => a.date.localeCompare(b.date));
 }
 
+const GRANULARITY_LS_KEY = 'ds-dash-granularity';
+
+function getISOWeekStart(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay() || 7; // 1=Mon..7=Sun
+  d.setDate(d.getDate() - day + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function groupDays(days, granularity) {
+  if (!days || !days.length || granularity === 'daily') return days;
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const groups = {};
+  for (const d of days) {
+    let key, label;
+    if (granularity === 'weekly') {
+      key = getISOWeekStart(d.date);
+      const monday = new Date(key + 'T00:00:00');
+      const sunday = new Date(monday);
+      sunday.setDate(sunday.getDate() + 6);
+      const sm = MONTHS[monday.getMonth()];
+      const em = MONTHS[sunday.getMonth()];
+      label = sm === em
+        ? `${sm} ${monday.getDate()}-${sunday.getDate()}`
+        : `${sm} ${monday.getDate()} - ${em} ${sunday.getDate()}`;
+    } else if (granularity === 'monthly') {
+      key = d.date.slice(0, 7);
+      const [y, m] = key.split('-');
+      label = `${MONTHS[parseInt(m)-1]} ${y}`;
+    }
+    if (!groups[key]) {
+      groups[key] = { label, date: d.date, cost_tokens: 0, cost_csv: 0, total_tokens: 0, cache_hit: 0, cache_miss: 0, output: 0, prompt: 0, requests: 0, byModel: {} };
+    }
+    const g = groups[key];
+    g.cost_tokens += d.cost_tokens;
+    g.cost_csv += d.cost_csv;
+    g.total_tokens += d.total_tokens;
+    g.cache_hit += d.cache_hit;
+    g.cache_miss += d.cache_miss;
+    g.output += d.output;
+    g.prompt += d.prompt;
+    g.requests += d.requests;
+    for (const [model, v] of Object.entries(d.byModel)) {
+      if (!g.byModel[model]) g.byModel[model] = { cost:0, tokens:0, cache_hit:0, cache_miss:0, output:0, requests:0, input_cost:0, output_cost:0 };
+      g.byModel[model].cost += v.cost;
+      g.byModel[model].tokens += v.tokens;
+      g.byModel[model].cache_hit += v.cache_hit;
+      g.byModel[model].cache_miss += v.cache_miss;
+      g.byModel[model].output += v.output;
+      g.byModel[model].requests += v.requests;
+      g.byModel[model].input_cost += (v.input_cost || 0);
+      g.byModel[model].output_cost += (v.output_cost || 0);
+    }
+  }
+  return Object.values(groups).sort((a,b) => a.date.localeCompare(b.date));
+}
+
 function getModels() {
   const r = db.exec('SELECT DISTINCT model FROM token_usage WHERE workspace_id = ? UNION SELECT DISTINCT model FROM cost_daily WHERE workspace_id = ?', [activeWsId, activeWsId]);
   return r.length ? r[0].values.map(v => v[0]).sort() : [];
@@ -1000,13 +1060,14 @@ function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete chart
 function downloadChart(chartKey, chartType) {
   const chart = charts[chartKey];
   if (!chart) return;
-  const days = _currentDays;
-  const startDate = days.length ? (days[0]?.date || 'unknown') : 'unknown';
-  const endDate = days.length ? (days[days.length-1]?.date || 'unknown') : 'unknown';
+  const granularity = document.getElementById('granularitySelect')?.value || 'daily';
+  const days = _groupedDays.length ? _groupedDays : _currentDays;
+  const startDate = days.length ? (days[0]?.label || days[0]?.date || 'unknown') : 'unknown';
+  const endDate = days.length ? (days[days.length-1]?.label || days[days.length-1]?.date || 'unknown') : 'unknown';
   const url = chart.toBase64Image('image/png', 1);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${chartType}_${startDate}_${endDate}.png`;
+  a.download = `${chartType}_${granularity}_${startDate}_${endDate}.png`;
   a.click();
 }
 
@@ -1019,6 +1080,9 @@ async function refreshAll() {
 
   const days = getDailyData(period, modelFilter);
   _currentDays = days;
+  const granularity = document.getElementById('granularitySelect')?.value || 'daily';
+  const chartDays = groupDays(days, granularity);
+  _groupedDays = chartDays;
   if (!days.length) {
     document.getElementById('kpiGrid').innerHTML = '<div style="color:var(--text-dim);padding:20px">No data yet — drag in a DeepSeek usage ZIP</div>';
     ['tokens','spend','modelPie','ratio','key','modelDist'].forEach(k => destroyChart(k));
@@ -1057,13 +1121,13 @@ async function refreshAll() {
   periodSel.value = periodSel.querySelector(`option[value="${curPeriod}"]`) ? curPeriod : 'all';
 
   // Charts
-  renderTokenChart(days);
-  renderModelDistChart(days);
-  renderSpendChart(days);
-  renderModelPie(days);
-  renderRatioChart(days);
-  renderTopSpend(days);
-  renderKeyChart(days);
+  renderTokenChart(chartDays);
+  renderModelDistChart(chartDays);
+  renderSpendChart(chartDays);
+  renderModelPie(chartDays);
+  renderRatioChart(chartDays);
+  renderTopSpend(chartDays);
+  renderKeyChart(chartDays);
 
   // Anomaly Detection
   const prefs = loadAnomalyPrefs();
@@ -1151,7 +1215,7 @@ function renderTokenChart(days) {
   ];
 
   // Anomaly scatter overlay
-  if (_anomalyCache && _anomalyCache.dates.size) {
+  if (_anomalyCache && _anomalyCache.dates.size && document.getElementById('granularitySelect')?.value === 'daily') {
     const anomalyPts = [];
     const maxVal = Math.max(...days.map(d => d.cache_hit + d.cache_miss + d.output)) * 1.08;
     days.forEach((d, i) => { if (_anomalyCache.dates.has(d.date)) anomalyPts.push({x: i, y: maxVal}); });
@@ -1173,7 +1237,7 @@ function renderTokenChart(days) {
 
   charts.tokens = new Chart(ctx, {
     type: 'line',
-    data: { labels: days.map(d => fmtDate(d.date)), datasets },
+    data: { labels: days.map(d => d.label || fmtDate(d.date)), datasets },
     options: {
       ...chartCommonOptions(), aspectRatio: 2.2,
       interaction: { mode: 'index', intersect: false },
@@ -1186,7 +1250,7 @@ function renderTokenChart(days) {
 function renderModelDistChart(days) {
   destroyChart('modelDist');
   const ctx = document.getElementById('cModelDist').getContext('2d');
-  const labels = days.map(d => fmtDate(d.date));
+  const labels = days.map(d => d.label || fmtDate(d.date));
   const models = [...new Set(days.flatMap(d => Object.keys(d.byModel)))];
   const baseColors = ['#4c6ef5','#39d2c0','#a371f7','#d2991d','#f85149','#3fb950','#f778ba','#79c0ff','#d2a8ff','#ffa657','#56d364','#db6d28'];
 
@@ -1227,7 +1291,7 @@ function renderModelDistChart(days) {
 function renderSpendChart(days) {
   destroyChart('spend');
   const ctx = document.getElementById('cSpend').getContext('2d');
-  const labels = days.map(d => fmtDate(d.date));
+  const labels = days.map(d => d.label || fmtDate(d.date));
   const models = [...new Set(days.flatMap(d => Object.keys(d.byModel)))];
   const baseColors = ['#4c6ef5','#39d2c0','#a371f7','#d2991d','#f85149','#3fb950'];
   const datasets = [];
@@ -1254,7 +1318,7 @@ function renderSpendChart(days) {
   });
 
   // Anomaly scatter overlay
-  if (_anomalyCache && _anomalyCache.dates.size) {
+  if (_anomalyCache && _anomalyCache.dates.size && document.getElementById('granularitySelect')?.value === 'daily') {
     const anomalyPts = [];
     const maxVal = Math.max(...days.map(d => d.cost_csv || d.cost_tokens)) * 1.08;
     days.forEach((d, i) => { if (_anomalyCache.dates.has(d.date)) anomalyPts.push({x: i, y: maxVal}); });
@@ -1342,7 +1406,7 @@ function renderRatioChart(days) {
 function renderTopSpend(days) {
   const sorted = [...days].sort((a,b) => (b.cost_csv||b.cost_tokens) - (a.cost_csv||a.cost_tokens)).slice(0,10);
   document.getElementById('topSpend').innerHTML = sorted.map((d,i) =>
-    `<li><span class="rank">#${i+1}</span><span class="date">${fmtDate(d.date)}</span><span class="amount">${fmtUSD(d.cost_csv||d.cost_tokens)}</span></li>`
+    `<li><span class="rank">#${i+1}</span><span class="date">${d.label || fmtDate(d.date)}</span><span class="amount">${fmtUSD(d.cost_csv||d.cost_tokens)}</span></li>`
   ).join('');
 }
 
@@ -1816,8 +1880,12 @@ document.getElementById('modalConfirm').addEventListener('click', () => {
 });
 document.getElementById('modalInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('modalConfirm').click(); });
 
-['periodSelect','modelSelect','keySelect'].forEach(id => {
+['periodSelect','modelSelect','keySelect','granularitySelect'].forEach(id => {
   document.getElementById(id)?.addEventListener('change', refreshAll);
+});
+// Persist granularity preference
+document.getElementById('granularitySelect')?.addEventListener('change', function() {
+  try { localStorage.setItem(GRANULARITY_LS_KEY, this.value); } catch(e) {}
 });
 
 // Drop zone
@@ -2022,9 +2090,9 @@ function runAnomalyDetection() {
   saveAnomalyPrefs(prefs);
   _anomalyCache = detectAnomalies(_currentDays, prefs.threshold, prefs);
   renderAnomalyPanel(_anomalyCache);
-  // Re-render charts that have anomaly overlays
-  renderTokenChart(_currentDays);
-  renderSpendChart(_currentDays);
+  // Re-render charts that have anomaly overlays (use grouped days if applicable)
+  renderTokenChart(_groupedDays.length ? _groupedDays : _currentDays);
+  renderSpendChart(_groupedDays.length ? _groupedDays : _currentDays);
 }
 
 document.getElementById('thresholdSlider').addEventListener('input', runAnomalyDetection);
@@ -2081,6 +2149,13 @@ document.getElementById('themeToggle')?.addEventListener('click', () => {
 // -- Init --
 async function init() {
   loadTheme();
+  // Restore granularity preference
+  try {
+    const saved = localStorage.getItem(GRANULARITY_LS_KEY);
+    if (saved && ['daily','weekly','monthly'].includes(saved)) {
+      document.getElementById('granularitySelect').value = saved;
+    }
+  } catch(e) {}
   try {
     SQL = await initSqlJs({ locateFile: f => `https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/${f}` });
     const loaded = await loadDB();

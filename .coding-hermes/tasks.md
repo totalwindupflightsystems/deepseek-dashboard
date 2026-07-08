@@ -2,9 +2,10 @@
 
 ## Active
 
+- ✅ P3: Per-hour / weekly / monthly granularity option — add granularity selector in controls, group data by week/month in addition to daily, adjust chart labels accordingly
+
 ## Backlog
 
-- Per-hour granularity option
 - Rate limit monitoring panel
 
 ## Completed
