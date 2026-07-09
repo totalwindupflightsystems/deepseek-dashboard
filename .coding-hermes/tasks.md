@@ -4,8 +4,6 @@
 
 ## Backlog
 
-- Rate limit monitoring panel
-
 ## Queued (discovery sweep 2026-07-09)
 
 - [ ] DOC: Fix README line count claim — says ~1,100 lines, actual is 2,184
@@ -14,6 +12,8 @@
 - [ ] DOC: Update README localStorage claim — says "no localStorage by default" but theme persistence uses it immediately
 
 ## Completed
+
+- ✅ P1: Rate limit monitoring panel — collapsible panel showing request rate metrics, configurable API tier (Free/Paid/Enterprise/Custom), usage gauges, peak day analysis, top request-volume days list, tier preference persisted in localStorage. (commit TBD)
 
 - ✅ P3: Per-hour / weekly / monthly granularity option — granularity selector (Daily/Weekly/Monthly), client-side date grouping via groupDays(), labels for weekly/monthly views, anomaly markers gated to daily, preference persisted in localStorage (commit bba5124)
 - ✅ P2: Anomaly detection / spike alerts (TASK-001) — z-score based detection, collapsible panel with threshold slider & metric checkboxes, scatter markers on Token/Spend charts, severity levels, localStorage prefs (commit e6a30d0)
