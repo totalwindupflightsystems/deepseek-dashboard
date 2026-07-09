@@ -288,6 +288,48 @@ tr:hover td { background: var(--bg-card-hover); }
   .anomaly-controls { flex-direction: column; align-items: stretch; gap: 10px; }
   .anomaly-item { flex-wrap: wrap; }
 }
+
+/* Rate Limit Monitor Panel */
+.rate-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; overflow: hidden; }
+.rate-toggle { display: flex; align-items: center; gap: 8px; padding: 10px 16px; cursor: pointer; user-select: none; transition: background 0.15s; font-size: 0.85rem; font-weight: 600; }
+.rate-toggle:hover { background: var(--bg-card-hover); }
+.rate-toggle .r-badge { font-size: 0.85rem; min-width: 18px; text-align: center; }
+.r-chevron { margin-left: auto; font-size: 0.7rem; color: var(--text-dim); transition: transform 0.2s; }
+.r-chevron.collapsed { transform: rotate(-90deg); }
+.rate-body { padding: 0 16px 16px; }
+.rate-body.collapsed { display: none; }
+.rate-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.rate-controls select { background: var(--bg-input); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 10px; font-size: 0.8rem; font-family: var(--font); }
+.rate-controls select:focus { outline: none; border-color: var(--accent); }
+.rate-controls label { font-size: 0.78rem; color: var(--text-dim); display: inline-flex; align-items: center; gap: 4px; }
+.rate-custom-inputs { display: none; gap: 10px; align-items: center; }
+.rate-custom-inputs.show { display: flex; }
+.rate-custom-inputs input { width: 90px; background: var(--bg-input); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 8px; font-size: 0.78rem; font-family: var(--mono); text-align: right; }
+.rate-custom-inputs input:focus { outline: none; border-color: var(--accent); }
+.rate-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.rate-metric { background: var(--accent-glow); border-radius: var(--radius-sm); padding: 8px 12px; text-align: center; }
+.rate-metric .r-val { font-size: 1rem; font-weight: 700; color: var(--text-bright); font-variant-numeric: tabular-nums; font-family: var(--mono); }
+.rate-metric .r-lbl { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; }
+.rate-gauge { margin-bottom: 12px; }
+.rate-gauge .gauge-header { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); margin-bottom: 4px; }
+.rate-gauge .gauge-header span:last-child { font-weight: 600; font-family: var(--mono); }
+.rate-gauge-bar { height: 10px; background: var(--bg-input); border-radius: 5px; overflow: hidden; border: 1px solid var(--border); }
+.rate-gauge-fill { height: 100%; border-radius: 5px; transition: width 0.4s ease, background 0.4s ease; min-width: 2px; }
+.rate-gauge-fill.green { background: var(--green); }
+.rate-gauge-fill.yellow { background: var(--orange); }
+.rate-gauge-fill.red { background: var(--red); }
+.rate-top-days { list-style: none; }
+.rate-top-days li { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 0.78rem; }
+.rate-top-days li:last-child { border-bottom: none; }
+.rate-top-days .r-rank { color: var(--text-dim); width: 20px; font-size: 0.72rem; }
+.rate-top-days .r-date { flex: 1; font-family: var(--mono); font-size: 0.75rem; }
+.rate-top-days .r-req { font-weight: 600; color: var(--text-bright); font-variant-numeric: tabular-nums; font-family: var(--mono); }
+.rate-label-sm { font-size: 0.72rem; color: var(--text-dim); margin-bottom: 4px; display: block; }
+@media (max-width: 768px) {
+  .rate-metrics { grid-template-columns: repeat(2, 1fr); }
+  .rate-controls { flex-direction: column; align-items: stretch; }
+  .rate-custom-inputs.show { flex-wrap: wrap; }
+}
 </style>
 </head>
 <body>
@@ -374,6 +416,51 @@ tr:hover td { background: var(--bg-card-hover); }
         <div class="anomaly-list" id="anomalyList">
           <div class="anomaly-empty">No anomalies detected</div>
         </div>
+      </div>
+    </div>
+
+    <!-- Rate Limit Monitor Panel -->
+    <div class="rate-section" id="rateSection">
+      <div class="rate-toggle" id="rateToggle">
+        <span>&#128200; Rate Limit Monitor</span>
+        <span class="r-badge" id="rateBadge">&#128994;</span>
+        <span class="r-chevron" id="rateChevron">&#9660;</span>
+      </div>
+      <div class="rate-body" id="rateBody">
+        <div class="rate-controls">
+          <label>Tier:</label>
+          <select id="rateTierSelect">
+            <option value="free">Free</option>
+            <option value="paid">Pay-as-you-go</option>
+            <option value="enterprise">Enterprise</option>
+            <option value="custom">Custom</option>
+          </select>
+          <div class="rate-custom-inputs" id="rateCustomInputs">
+            <label>RPM:</label>
+            <input type="number" id="rateCustomRpm" min="1" value="10" step="1">
+            <label>Req/Day:</label>
+            <input type="number" id="rateCustomDay" min="1" value="14400" step="100">
+          </div>
+        </div>
+        <div class="rate-gauge" id="rateGauge">
+          <div class="gauge-header">
+            <span>Usage vs Limit</span>
+            <span id="rateGaugeLabel">0%</span>
+          </div>
+          <div class="rate-gauge-bar">
+            <div class="rate-gauge-fill green" id="rateGaugeFill" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="rate-metrics" id="rateMetrics">
+          <div class="rate-metric"><div class="r-val" id="rTotalReq">0</div><div class="r-lbl">Total Requests</div></div>
+          <div class="rate-metric"><div class="r-val" id="rAvgDay">0</div><div class="r-lbl">Avg Req / Day</div></div>
+          <div class="rate-metric"><div class="r-val" id="rEstRpm">—</div><div class="r-lbl">Est. Req / Min</div></div>
+          <div class="rate-metric"><div class="r-val" id="rPeakDay">—</div><div class="r-lbl">Peak Day</div></div>
+        </div>
+        <span class="rate-label-sm">Top Request Days</span>
+        <ul class="rate-top-days" id="rateTopDays">
+          <li style="color:var(--text-dim);font-size:0.78rem;padding:4px 0">No data</li>
+        </ul>
       </div>
     </div>
 
@@ -1140,6 +1227,9 @@ async function refreshAll() {
   renderAnomalyPanel(_anomalyCache);
   // Charts will re-render with anomaly markers when charts are drawn above
 
+  // Rate Limit Monitor
+  runRateLimitCheck();
+
   // Wire up chart download buttons
   document.querySelectorAll('.chart-dl-btn').forEach(btn => {
     btn.onclick = () => downloadChart(btn.dataset.chart, btn.dataset.type);
@@ -1515,6 +1605,110 @@ function renderAnomalyPanel(anomalies) {
       <span class="a-zscore">z=${a.zScore.toFixed(2)}</span>
     </div>`;
   }).join('');
+}
+
+// -- Rate Limit Monitor --
+const RATE_LS_KEY = 'ds-dash-rate-prefs';
+const RATE_DEFAULTS = {tier: 'free', customRpm: 10, customDay: 14400};
+const RATE_TIER_LIMITS = {free: {rpm: 10, day: 14400}, paid: {rpm: 500, day: 720000}, enterprise: {rpm: 5000, day: 7200000}};
+
+function loadRatePrefs() {
+  try { return Object.assign({}, RATE_DEFAULTS, JSON.parse(localStorage.getItem(RATE_LS_KEY))); }
+  catch(e) { return Object.assign({}, RATE_DEFAULTS); }
+}
+function saveRatePrefs(prefs) {
+  try { localStorage.setItem(RATE_LS_KEY, JSON.stringify(prefs)); } catch(e) {}
+}
+
+function getRateLimits(tier, customRpm, customDay) {
+  if (tier === 'custom') return {rpm: Math.max(1, customRpm||1), day: Math.max(1, customDay||1)};
+  return RATE_TIER_LIMITS[tier] || RATE_TIER_LIMITS.free;
+}
+
+function computeRateMetrics(days) {
+  if (!days || !days.length) return null;
+  const totalReq = days.reduce((s, d) => s + (d.requests || 0), 0);
+  const avgDay = totalReq / days.length;
+  const granularity = document.getElementById('granularitySelect')?.value || 'daily';
+  const isDaily = granularity === 'daily';
+
+  // Find peak day
+  let peakDay = null, peakReq = 0;
+  days.forEach(d => {
+    const r = d.requests || 0;
+    if (r > peakReq) { peakReq = r; peakDay = d.date; }
+  });
+
+  // Top 5 request days
+  const sorted = [...days].sort((a, b) => (b.requests||0) - (a.requests||0)).slice(0, 5);
+
+  return { totalReq, avgDay, isDaily, peakDay, peakReq, topDays: sorted };
+}
+
+function renderRatePanel(metrics) {
+  const prefs = loadRatePrefs();
+  const limits = getRateLimits(prefs.tier, prefs.customRpm, prefs.customDay);
+
+  // Update tier selector
+  document.getElementById('rateTierSelect').value = prefs.tier;
+  document.getElementById('rateCustomInputs').classList.toggle('show', prefs.tier === 'custom');
+  document.getElementById('rateCustomRpm').value = prefs.customRpm;
+  document.getElementById('rateCustomDay').value = prefs.customDay;
+
+  if (!metrics) {
+    document.getElementById('rTotalReq').textContent = '0';
+    document.getElementById('rAvgDay').textContent = '0';
+    document.getElementById('rEstRpm').textContent = '—';
+    document.getElementById('rPeakDay').textContent = '—';
+    document.getElementById('rateGaugeFill').style.width = '0%';
+    document.getElementById('rateGaugeFill').className = 'rate-gauge-fill green';
+    document.getElementById('rateGaugeLabel').textContent = '0%';
+    document.getElementById('rateTopDays').innerHTML = '<li style="color:var(--text-dim);font-size:0.78rem;padding:4px 0">No data</li>';
+    document.getElementById('rateBadge').innerHTML = '&#9898;';
+    return;
+  }
+
+  // Metrics
+  document.getElementById('rTotalReq').textContent = fmtNum(metrics.totalReq);
+  document.getElementById('rAvgDay').textContent = fmtNum(Math.round(metrics.avgDay));
+  document.getElementById('rEstRpm').textContent = metrics.isDaily ? '~' + (metrics.avgDay / 1440).toFixed(2) : '—';
+  document.getElementById('rPeakDay').innerHTML = metrics.peakDay ? `${fmtDate(metrics.peakDay)} (${fmtNum(metrics.peakReq)})` : '—';
+
+  // Top days
+  const topList = document.getElementById('rateTopDays');
+  if (metrics.topDays.length) {
+    topList.innerHTML = metrics.topDays.map((d, i) =>
+      `<li><span class="r-rank">#${i+1}</span><span class="r-date">${d.date}</span><span class="r-req">${fmtNum(d.requests||0)}</span></li>`
+    ).join('');
+  } else {
+    topList.innerHTML = '<li style="color:var(--text-dim);font-size:0.78rem;padding:4px 0">No request data available</li>';
+  }
+
+  // Gauge: usage vs daily limit
+  const pct = Math.min(100, (metrics.avgDay / limits.day) * 100);
+  const fill = document.getElementById('rateGaugeFill');
+  fill.style.width = pct + '%';
+  let cls = 'green';
+  if (pct > 80) cls = 'red';
+  else if (pct > 50) cls = 'yellow';
+  fill.className = 'rate-gauge-fill ' + cls;
+  document.getElementById('rateGaugeLabel').textContent = pct.toFixed(1) + '%';
+
+  // Badge status
+  const badge = document.getElementById('rateBadge');
+  if (pct > 80) badge.innerHTML = '&#128308;';  // red circle
+  else if (pct > 50) badge.innerHTML = '&#128992;'; // yellow circle
+  else badge.innerHTML = '&#128994;'; // green circle
+}
+
+function runRateLimitCheck() {
+  const days = _currentDays;
+  if (!days || !activeWsId) {
+    renderRatePanel(null);
+    return;
+  }
+  const metrics = computeRateMetrics(days);
+  renderRatePanel(metrics);
 }
 
 // -- Virtual Scroller Implementation --
@@ -2124,6 +2318,54 @@ document.getElementById('chkRequests').addEventListener('change', runAnomalyDete
       chevron.classList.add('collapsed');
     }
   });
+})();
+
+// -- Rate Limit Monitor Event Bindings --
+(function() {
+  const toggle = document.getElementById('rateToggle');
+  const body = document.getElementById('rateBody');
+  const chevron = document.getElementById('rateChevron');
+  const tierSelect = document.getElementById('rateTierSelect');
+  const customInputs = document.getElementById('rateCustomInputs');
+  const customRpm = document.getElementById('rateCustomRpm');
+  const customDay = document.getElementById('rateCustomDay');
+
+  let collapsed = window.innerWidth <= 768;
+  if (collapsed) { body.classList.add('collapsed'); chevron.classList.add('collapsed'); }
+
+  toggle.addEventListener('click', function() {
+    collapsed = !collapsed;
+    body.classList.toggle('collapsed', collapsed);
+    chevron.classList.toggle('collapsed', collapsed);
+  });
+
+  window.addEventListener('resize', function() {
+    if (window.innerWidth > 768 && collapsed) {
+      collapsed = false;
+      body.classList.remove('collapsed');
+      chevron.classList.remove('collapsed');
+    } else if (window.innerWidth <= 768 && !collapsed) {
+      collapsed = true;
+      body.classList.add('collapsed');
+      chevron.classList.add('collapsed');
+    }
+  });
+
+  function saveAndRefresh() {
+    const prefs = loadRatePrefs();
+    prefs.tier = tierSelect.value;
+    if (prefs.tier === 'custom') {
+      prefs.customRpm = parseInt(customRpm.value) || 10;
+      prefs.customDay = parseInt(customDay.value) || 14400;
+    }
+    saveRatePrefs(prefs);
+    customInputs.classList.toggle('show', prefs.tier === 'custom');
+    runRateLimitCheck();
+  }
+
+  tierSelect.addEventListener('change', saveAndRefresh);
+  customRpm.addEventListener('input', saveAndRefresh);
+  customDay.addEventListener('input', saveAndRefresh);
 })();
 
 // -- Theme Toggle --
