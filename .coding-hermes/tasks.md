@@ -2,7 +2,7 @@
 
 ## Active
 
-
+*No active tasks remaining.*
 
 ## Backlog
 
