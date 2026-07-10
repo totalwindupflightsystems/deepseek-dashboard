@@ -10,6 +10,8 @@
 - [x] DOC: Fix README Chart.js version — says 4.4.7, actual import is 4.4.1
 - [x] DOC: Add sql.js to README tech stack table
 - [x] DOC: Update README localStorage claim — says "no localStorage by default" but theme persistence uses it immediately
+- [ ] DOC: OpenRouter comparison claimed in README but not implemented — 0 references in index.html (remove claim or implement feature)
+- [ ] DOC: Sample data section references non-existent files — ZIPs are gitignored, no sample-data/ directory
 
 ## Completed
 
