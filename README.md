@@ -16,7 +16,7 @@ This dashboard fixes that. Drag in your DeepSeek usage ZIP. Get charts, trends, 
 - No analytics, no telemetry, no CDN calls that phone home
 - CDN imports (JSZip, Chart.js) are the only external requests — both are version-pinned and from cdnjs
 - OpenRouter comparison mode is opt-in and the API key never leaves your browser memory
-- No localStorage by default — data evaporates when you close the tab
+- localStorage used only for preferences (theme, granularity, anomaly settings, pricing overrides) — usage data is in-memory and evaporates when you close the tab
 
 **How to verify:** Open DevTools → Network tab. Drag in your ZIP. The only requests you'll see are the two CDN script loads (JSZip + Chart.js). Zero outbound data.
 
@@ -59,12 +59,13 @@ Just open the link — no install, no signup, nothing. Your data stays in your b
 
 ## How to Verify the Code
 
-It's one file. Open `index.html` in any text editor. Read it. No obfuscation, no minification, no hidden requests. The entire application is ~1,100 lines of vanilla HTML/CSS/JS.
+It's one file. Open `index.html` in any text editor. Read it. No obfuscation, no minification, no hidden requests. The entire application is ~2,200 lines of vanilla HTML/CSS/JS.
 
 ## Tech Stack
 
 - **JSZip 3.10.1** — ZIP extraction (CDN, version-pinned)
-- **Chart.js 4.4.7** — Visualizations (CDN, version-pinned)
+- **Chart.js 4.4.1** — Visualizations (CDN, version-pinned)
+- **sql.js 1.10.3** — SQLite persistence via IndexedDB (CDN)
 - **Vanilla JS** — No framework, no build step, no npm, no bundler
 - **CSS Grid + Flexbox** — Responsive layout, no CSS framework
 

@@ -6,10 +6,10 @@
 
 ## Queued (discovery sweep 2026-07-09)
 
-- [ ] DOC: Fix README line count claim — says ~1,100 lines, actual is 2,184
-- [ ] DOC: Fix README Chart.js version — says 4.4.7, actual import is 4.4.1
-- [ ] DOC: Add sql.js to README tech stack table
-- [ ] DOC: Update README localStorage claim — says "no localStorage by default" but theme persistence uses it immediately
+- [x] DOC: Fix README line count claim — says ~1,100 lines, actual is 2,184
+- [x] DOC: Fix README Chart.js version — says 4.4.7, actual import is 4.4.1
+- [x] DOC: Add sql.js to README tech stack table
+- [x] DOC: Update README localStorage claim — says "no localStorage by default" but theme persistence uses it immediately
 
 ## Completed
 
