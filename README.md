@@ -14,11 +14,10 @@ This dashboard fixes that. Drag in your DeepSeek usage ZIP. Get charts, trends, 
 
 - All parsing, aggregation, and charting is client-side JavaScript
 - No analytics, no telemetry, no CDN calls that phone home
-- CDN imports (JSZip, Chart.js) are the only external requests — both are version-pinned and from cdnjs
-- OpenRouter comparison mode is opt-in and the API key never leaves your browser memory
+- CDN imports (JSZip, Chart.js, sql.js) are the only external requests — all are version-pinned
 - localStorage used only for preferences (theme, granularity, anomaly settings, pricing overrides) — usage data is in-memory and evaporates when you close the tab
 
-**How to verify:** Open DevTools → Network tab. Drag in your ZIP. The only requests you'll see are the two CDN script loads (JSZip + Chart.js). Zero outbound data.
+**How to verify:** Open DevTools → Network tab. Drag in your ZIP. The only requests you'll see are the three CDN script loads (JSZip + Chart.js + sql.js). Zero outbound data.
 
 ## Features
 
@@ -36,7 +35,6 @@ This dashboard fixes that. Drag in your DeepSeek usage ZIP. Get charts, trends, 
 | **Period filter** | All time, last 7/30 days, or per-month |
 | **Model/Key filters** | Drill down by model or API key |
 | **CSV export** | Export cleaned, aggregated data |
-| **OpenRouter comparison** | Optional: paste your OR API key to overlay usage curves |
 | **Pricing verification** | Auto-checks export pricing against known rates |
 | **Dark theme** | Responsive, mobile-friendly |
 
@@ -91,7 +89,6 @@ The repository includes a real June 2026 usage export showing:
 ## Known Limitations
 
 - Works with DeepSeek's current export format (June 2026). If they change column names, fuzzy matching handles most cases, but radical format changes may need a code update.
-- OpenRouter comparison loads last 30 days of data — limited to what the OpenRouter Analytics API returns.
 - Very large exports (6+ months of heavy usage) may cause browser memory pressure. The dashboard processes everything in-memory.
 
 ## License
