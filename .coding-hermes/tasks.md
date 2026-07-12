@@ -6,12 +6,14 @@
 
 ## Queued (discovery sweep 2026-07-09)
 
-## Completed
+- [x] DOC: Fix README line count claim — says ~1,100 lines, actual is 2,184
+- [x] DOC: Fix README Chart.js version — says 4.4.7, actual import is 4.4.1
+- [x] DOC: Add sql.js to README tech stack table
+- [x] DOC: Update README localStorage claim — says "no localStorage by default" but theme persistence uses it immediately
+- [ ] DOC: OpenRouter comparison claimed in README but not implemented — 0 references in index.html (remove claim or implement feature)
+- [ ] DOC: Sample data section references non-existent files — ZIPs are gitignored, no sample-data/ directory
 
-- ✅ DOC: Fix README line count claim — says ~1,100 lines, actual is 2,184 (fixed to ~2,400; actual 2,426)
-- ✅ DOC: Fix README Chart.js version — says 4.4.7, actual import is 4.4.1 (fixed)
-- ✅ DOC: Add sql.js to README tech stack table (added sql.js 1.10.3)
-- ✅ DOC: Update README localStorage claim — says "no localStorage by default" but theme persistence uses it immediately (fixed to accurately describe theme/prefs usage)
+## Completed
 
 - ✅ P1: Rate limit monitoring panel — collapsible panel showing request rate metrics, configurable API tier (Free/Paid/Enterprise/Custom), usage gauges, peak day analysis, top request-volume days list, tier preference persisted in localStorage. (commit cb63352)
 
