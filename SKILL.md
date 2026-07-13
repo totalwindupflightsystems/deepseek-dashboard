@@ -28,7 +28,7 @@ python3 -m http.server 8080
 - `index.html` — entire application (~2,200 lines vanilla HTML/CSS/JS)
 - `README.md` — user-facing documentation
 - `.coding-hermes/tasks.md` — foreman task board
-- `sample-data/` — real June 2026 DeepSeek usage export
+- Sample data ZIPs are gitignored (`*.zip`) — obtain from DeepSeek API Platform → Export Usage
 
 ## Tech Stack
 
