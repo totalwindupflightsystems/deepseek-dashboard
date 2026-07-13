@@ -2,6 +2,8 @@
 
 ## Active
 
+- [ ] DOC: README feature table missing 10+ implemented features — rate limit panel, anomaly detection, model distribution chart, pricing calculator, PNG export, virtual scrolling, multi-workspace, granularity selector, theme toggle, mobile refinements, input/output token split
+
 ## Backlog
 
 ## Queued (discovery sweep 2026-07-12 — tick #1)
