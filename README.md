@@ -24,19 +24,29 @@ This dashboard fixes that. Drag in your DeepSeek usage ZIP. Get charts, trends, 
 | Feature | |
 |---|---|
 | **Drag-drop ZIP ingestion** | JSZip extracts DeepSeek's `amount-*.csv` and `cost-*.csv` |
-| **KPI cards** | Total cost, total tokens, total requests, average daily spend |
+| **Multi-workspace support** | Create/rename/delete/switch workspaces — data isolated per workspace |
+| **Multiple file upload** | Upload multiple ZIPs, diff management on re-upload (replace matching date ranges) |
+| **KPI cards** | Total cost, total tokens (cache hit/miss), total requests, models used, active keys |
 | **Token usage over time** | Stacked area chart: cache hit, cache miss, output tokens |
+| **Input vs output token split** | Combined input tokens on time chart, separate input/output KPIs, cost split on spend chart |
+| **Model distribution over time** | Stacked area chart showing model usage evolution |
 | **Daily spend** | Stacked bar chart by model (V4 Pro vs V4 Flash) |
 | **Per-model breakdown** | Doughnut chart with cost per model |
-| **Prompt vs completion ratio** | Visual breakdown of input vs output token split |
-| **Top spend days** | Ranked list of highest-cost days |
 | **Per-key spend** | Horizontal bar chart breaking down cost by API key |
+| **Top spend days** | Ranked list of highest-cost days |
+| **Rate limit monitoring** | Collapsible panel — API tier selector (Free/Paid/Enterprise/Custom), usage gauges, peak day analysis, top request-volume days |
+| **Anomaly detection** | Z-score based spike alerts, collapsible panel with threshold slider & metric checkboxes, scatter markers on charts, severity levels |
+| **Granularity selector** | Daily / Weekly / Monthly grouping with client-side date aggregation |
+| **Token pricing calculator** | Custom pricing overrides per model, compare against known rates |
+| **Chart export as PNG** | One-click download per chart, filename includes chart type + date range |
 | **Raw data table** | Searchable, filterable table with all parsed rows |
+| **Virtual scrolling** | Handles large datasets without browser memory pressure |
 | **Period filter** | All time, last 7/30 days, or per-month |
 | **Model/Key filters** | Drill down by model or API key |
-| **CSV export** | Export cleaned, aggregated data |
+| **CSV export** | Export cleaned, aggregated data (aggregated + raw) |
 | **Pricing verification** | Auto-checks export pricing against known rates |
-| **Dark theme** | Responsive, mobile-friendly |
+| **Dark/light theme toggle** | Persistent preference in localStorage |
+| **Mobile refinements** | Swipe to dismiss toast, bottom sheet for filters, responsive layout |
 
 ## Live Demo
 
