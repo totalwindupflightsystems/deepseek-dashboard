@@ -4,20 +4,20 @@
 
 ## Backlog
 
-## Queued (discovery sweep 2026-07-09)
+## Queued (discovery sweep 2026-07-12 — tick #1)
 
-- [x] DOC: Sample data section references non-existent files — ZIPs are gitignored, no sample-data/ directory (commit c545db0)
+- [ ] DOC: README Sample Data section claims "repository includes real June 2026 export" but ZIPs are gitignored and no sample-data/ directory exists. Prior DOC task (c545db0) only fixed SKILL.md, missed README.
+- [ ] DOC: Line count claims say ~2,200 but actual index.html is 2,426 lines. Affects README line 60 and SKILL.md line 33.
 
 ## Completed
 
+- ✅ DOC: Sample data section references non-existent files — ZIPs are gitignored, no sample-data/ directory (commit c545db0)
 - ✅ DOC: OpenRouter comparison claimed in README but not implemented — removed stale claims in 3 sections (Privacy, Features, Known Limitations); feature was intentionally removed in 3959602
 - ✅ DOC: Fix README line count claim — says ~1,100 lines, actual is 2,184
 - ✅ DOC: Fix README Chart.js version — says 4.4.7, actual import is 4.4.1
 - ✅ DOC: Add sql.js to README tech stack table
 - ✅ DOC: Update README localStorage claim — says "no localStorage by default" but theme persistence uses it immediately
-
 - ✅ P1: Rate limit monitoring panel — collapsible panel showing request rate metrics, configurable API tier (Free/Paid/Enterprise/Custom), usage gauges, peak day analysis, top request-volume days list, tier preference persisted in localStorage. (commit cb63352)
-
 - ✅ P3: Per-hour / weekly / monthly granularity option — granularity selector (Daily/Weekly/Monthly), client-side date grouping via groupDays(), labels for weekly/monthly views, anomaly markers gated to daily, preference persisted in localStorage (commit bba5124)
 - ✅ P2: Anomaly detection / spike alerts (TASK-001) — z-score based detection, collapsible panel with threshold slider & metric checkboxes, scatter markers on Token/Spend charts, severity levels, localStorage prefs (commit e6a30d0)
 - ✅ P3: Visual polish and desktop/mobile refinements — rounded bar corners, responsive 8/9 px fonts, theme-aware grid/tooltip colors, mobile-only bottom sheet, longer workspace dropdown, drop-zone format help, table scroll indicator (commit 7a3d6e1)
