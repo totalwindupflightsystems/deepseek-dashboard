@@ -6,8 +6,8 @@
 
 ## Queued (discovery sweep 2026-07-12 — tick #1)
 
-- [ ] DOC: README Sample Data section claims "repository includes real June 2026 export" but ZIPs are gitignored and no sample-data/ directory exists. Prior DOC task (c545db0) only fixed SKILL.md, missed README.
-- [ ] DOC: Line count claims say ~2,200 but actual index.html is 2,426 lines. Affects README line 60 and SKILL.md line 33.
+- [x] DOC: README Sample Data section claims "repository includes real June 2026 export" but ZIPs are gitignored and no sample-data/ directory exists. Prior DOC task (c545db0) only fixed SKILL.md, missed README. (commit 79ff469)
+- [x] DOC: Line count claims say ~2,200 but actual index.html is 2,426 lines. Affects README line 60 and SKILL.md line 33. (commit 79ff469)
 
 ## Completed
 
