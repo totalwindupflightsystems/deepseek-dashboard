@@ -57,7 +57,7 @@ Just open the link — no install, no signup, nothing. Your data stays in your b
 
 ## How to Verify the Code
 
-It's one file. Open `index.html` in any text editor. Read it. No obfuscation, no minification, no hidden requests. The entire application is ~2,200 lines of vanilla HTML/CSS/JS.
+It's one file. Open `index.html` in any text editor. Read it. No obfuscation, no minification, no hidden requests. The entire application is ~2,400 lines of vanilla HTML/CSS/JS.
 
 ## Tech Stack
 
@@ -78,13 +78,16 @@ The dashboard parses both, cross-references pricing, and presents the complete p
 
 ## Sample Data
 
-The repository includes a real June 2026 usage export showing:
+The dashboard was developed and tested against a real June 2026 usage export. The sample numbers below give you a sense of what a typical month looks like:
+
 - **$380.08** total spend over 22 days
 - **16.25 billion** total tokens
 - **174,766** API requests
 - **9 active API keys**
 - **2 models:** deepseek-v4-pro, deepseek-v4-flash
 - **174:1 prompt-to-completion ratio** (DeepSeek's massive context + aggressive caching at work)
+
+> **Note:** ZIP exports are gitignored (`*.zip`). Get your own from [DeepSeek Platform → Usage](https://platform.deepseek.com/usage) — pick a month, click Export, drag the ZIP into the dashboard.
 
 ## Known Limitations
 
