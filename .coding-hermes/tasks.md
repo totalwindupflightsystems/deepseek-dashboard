@@ -6,7 +6,7 @@
 
 ## Queued (discovery sweep 2026-07-09)
 
-- [ ] DOC: Sample data section references non-existent files — ZIPs are gitignored, no sample-data/ directory
+- [x] DOC: Sample data section references non-existent files — ZIPs are gitignored, no sample-data/ directory (commit c545db0)
 
 ## Completed
 
