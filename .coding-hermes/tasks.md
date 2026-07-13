@@ -2,8 +2,6 @@
 
 ## Active
 
-- [ ] DOC: README feature table missing 10+ implemented features — rate limit panel, anomaly detection, model distribution chart, pricing calculator, PNG export, virtual scrolling, multi-workspace, granularity selector, theme toggle, mobile refinements, input/output token split
-
 ## Backlog
 
 ## Queued (discovery sweep 2026-07-12 — tick #1)
@@ -13,6 +11,7 @@
 
 ## Completed
 
+- ✅ DOC: README feature table updated with 10+ implemented features — rate limit, anomaly detection, model distribution, pricing calculator, PNG export, virtual scrolling, multi-workspace, granularity, theme toggle, mobile refinements (commit 21882be)
 - ✅ DOC: Sample data section references non-existent files — ZIPs are gitignored, no sample-data/ directory (commit c545db0)
 - ✅ DOC: OpenRouter comparison claimed in README but not implemented — removed stale claims in 3 sections (Privacy, Features, Known Limitations); feature was intentionally removed in 3959602
 - ✅ DOC: Fix README line count claim — says ~1,100 lines, actual is 2,184
