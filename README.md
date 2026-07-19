@@ -72,8 +72,8 @@ It's one file. Open `index.html` in any text editor. Read it. No obfuscation, no
 ## Tech Stack
 
 - **JSZip 3.10.1** — ZIP extraction (CDN, version-pinned)
-- **Chart.js 4.4.1** — Visualizations (CDN, version-pinned)
-- **sql.js 1.10.3** — SQLite persistence via IndexedDB (CDN)
+- **Chart.js 4.5.1** — Visualizations (CDN, version-pinned)
+- **sql.js 1.14.1** — SQLite persistence via IndexedDB (CDN)
 - **Vanilla JS** — No framework, no build step, no npm, no bundler
 - **CSS Grid + Flexbox** — Responsive layout, no CSS framework
 

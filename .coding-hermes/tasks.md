@@ -6,8 +6,8 @@
 
 ## Queued (Never-Done Audit 2026-07-19)
 
-- [ ] DEPS: sql.js 1.10.3 → 1.14.1 — 4 major versions behind (latest 1.14.1, 3 months old). Check breaking changes in 1.11, 1.12, 1.13, 1.14. Update CDN URLs in index.html lines 10 and 2402. Verify IndexedDB persistence still works.
-- [ ] DEPS: Chart.js 4.4.1 → 4.5.1 — minor version behind (latest 4.5.1, 9 months old). Update CDN URL in index.html line 9. Verify all 7 chart types still render (token, modelDist, spend, modelPie, ratio, key, anomaly scatter).
+- [x] DEPS: sql.js 1.10.3 → 1.14.1 — 4 major versions behind (latest 1.14.1, 3 months old). Updated CDN URLs in index.html lines 10 and 2402 + README.md. All CDN URLs verified HTTP 200. (commit a91cd47^)
+- [x] DEPS: Chart.js 4.4.1 → 4.5.1 — minor version behind (latest 4.5.1, 9 months old). Updated CDN URL in index.html line 9 (switched from cdnjs to jsdelivr — cdnjs latest is 4.5.0). Verified HTTP 200. (commit a91cd47^)
 - [ ] QUALITY: XSS hardening — 29 innerHTML calls with untrusted data. Workspace names (line 2023), CSV model names (line 1241), API key names (line 1246), filenames (line 1537), raw data table (line 1972). All client-side-only so risk is low, but add textContent for text nodes or an escapeHtml() helper for mixed content.
 - [ ] TEST: No automated tests — 0 unit tests for CSV parser (`parseCSV`), anomaly detection (`detectAnomalies`), date grouping (`groupDays`, `getISOWeekStart`), pricing calculator (`recalcPricing`, `getAvgPriceForModel`). Add at minimum a basic test harness (Jest/Vitest) for critical calculation functions.
 - [ ] QUALITY: Add 'use strict' directive — entire 2,426-line file has no strict mode. Add at top of `<script>` block.

@@ -6,8 +6,8 @@
 <title>DeepSeek Usage Dashboard</title>
 <script>(function(){try{var t=localStorage.getItem('ds-dash-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.14.1/dist/sql-wasm.js"></script>
 <style>
 :root {
   --bg: #0d1117; --bg-card: #161b22; --bg-card-hover: #1c2333;
@@ -2399,7 +2399,7 @@ async function init() {
     }
   } catch(e) {}
   try {
-    SQL = await initSqlJs({ locateFile: f => `https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/${f}` });
+    SQL = await initSqlJs({ locateFile: f => `https://cdn.jsdelivr.net/npm/sql.js@1.14.1/dist/${f}` });
     const loaded = await loadDB();
     initSchema();
 
