@@ -541,6 +541,7 @@ tr:hover td { background: var(--bg-card-hover); }
 </div>
 
 <script>
+'use strict';
 // -- Global State --
 let SQL = null;
 let db = null;
@@ -569,6 +570,11 @@ function fmtTok(n) {
 function fmtNum(n) { return Math.round(Number(n)).toLocaleString(); }
 function fmtDate(d) { return new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
+}
 function toast(msg, warn) {
   const el = document.getElementById('toast');
   el.textContent = msg; el.className = 'toast show' + (warn ? ' warn' : '');
@@ -1238,12 +1244,12 @@ async function refreshAll() {
   // Refresh models/keys dropdowns
   const modelSel = document.getElementById('modelSelect');
   const models = getModels();
-  modelSel.innerHTML = '<option value="all">All Models</option>' + models.map(m => `<option value="${m}">${m}</option>`).join('');
+  modelSel.innerHTML = '<option value="all">All Models</option>' + models.map(m => '<option value="' + escapeHtml(m) + '">' + escapeHtml(m) + '</option>').join('');
   modelSel.value = models.includes(modelFilter) ? modelFilter : 'all';
 
   const keySel = document.getElementById('keySelect');
   const keys = getKeys();
-  keySel.innerHTML = '<option value="all">All Keys</option>' + keys.map(k => `<option value="${k}">${k}</option>`).join('');
+  keySel.innerHTML = '<option value="all">All Keys</option>' + keys.map(k => '<option value="' + escapeHtml(k) + '">' + escapeHtml(k) + '</option>').join('');
 
   // Refresh upload history
   renderUploadHistory();
@@ -1535,7 +1541,7 @@ function renderUploadHistory() {
     const dt = new Date(u.uploaded_at);
     const timeAgo = Math.round((Date.now() - dt.getTime()) / 60000);
     return `<div class="history-item">
-      <span class="hi-name">${u.filename} <span style="color:var(--text-dim);font-size:0.7rem">${u.mode === 'replace' ? '(updated)' : '(new)'}</span></span>
+      <span class="hi-name">${escapeHtml(u.filename)} <span style="color:var(--text-dim);font-size:0.7rem">${u.mode === 'replace' ? '(updated)' : '(new)'}</span></span>
       <span class="hi-meta">${fmtNum(u.rows_added)} rows · ${u.date_min}→${u.date_max} · ${timeAgo < 60 ? timeAgo+'m ago' : Math.round(timeAgo/60)+'h ago'}</span>
     </div>`;
   }).join('');
@@ -1598,12 +1604,12 @@ function renderAnomalyPanel(anomalies) {
     const label = a.metric === 'Cost' ? fmtUSD(a.value)
       : a.metric === 'Tokens' ? fmtTok(a.value)
       : fmtNum(a.value);
-    return `<div class="anomaly-item">
-      <span class="a-date">${a.date}</span>
-      <span class="a-metric">${a.metric}</span>
-      <span class="a-value">${label}</span>
-      <span class="a-zscore">z=${a.zScore.toFixed(2)}</span>
-    </div>`;
+    return '<div class="anomaly-item">
+      <span class="a-date">' + escapeHtml(a.date) + '</span>
+      <span class="a-metric">' + escapeHtml(a.metric) + '</span>
+      <span class="a-value">' + label + '</span>
+      <span class="a-zscore">z=' + a.zScore.toFixed(2) + '</span>
+    </div>';
   }).join('');
 }
 
@@ -1664,7 +1670,7 @@ function renderRatePanel(metrics) {
     document.getElementById('rateGaugeFill').className = 'rate-gauge-fill green';
     document.getElementById('rateGaugeLabel').textContent = '0%';
     document.getElementById('rateTopDays').innerHTML = '<li style="color:var(--text-dim);font-size:0.78rem;padding:4px 0">No data</li>';
-    document.getElementById('rateBadge').innerHTML = '&#9898;';
+    document.getElementById('rateBadge').textContent = '\u26AA';
     return;
   }
 
@@ -1696,9 +1702,9 @@ function renderRatePanel(metrics) {
 
   // Badge status
   const badge = document.getElementById('rateBadge');
-  if (pct > 80) badge.innerHTML = '&#128308;';  // red circle
-  else if (pct > 50) badge.innerHTML = '&#128992;'; // yellow circle
-  else badge.innerHTML = '&#128994;'; // green circle
+  if (pct > 80) badge.textContent = '\u{1F534}';  // red circle
+  else if (pct > 50) badge.textContent = '\u{1F7E1}'; // yellow circle
+  else badge.textContent = '\u{1F7E2}'; // green circle
 }
 
 function runRateLimitCheck() {
@@ -1972,12 +1978,7 @@ function renderTable(days, modelFilter) {
     tbody.innerHTML = rows.map(r => {
       const typ = r[3], amt = Number(r[4]), price = Number(r[5]), cost = Number(r[6]);
       const typLabel = formatType(typ);
-      return `<tr>
-        <td>${r[0]}</td><td>${r[1]}</td><td>${r[2]||'\u2014'}</td><td>${typLabel}</td>
-        <td class="num">${typ==='request_count' ? fmtNum(amt) : fmtTok(amt)}</td>
-        <td class="num">${price > 0 ? '$'+price.toExponential(3) : '\u2014'}</td>
-        <td class="num">${fmtUSD(cost)}</td>
-      </tr>`;
+      return '<tr>\n        <td>' + escapeHtml(r[0]) + '</td><td>' + escapeHtml(r[1]) + '</td><td>' + escapeHtml(r[2]||'\u2014') + '</td><td>' + escapeHtml(typLabel) + '</td>\n        <td class="num">' + (typ==='request_count' ? fmtNum(amt) : fmtTok(amt)) + '</td>\n        <td class="num">' + (price > 0 ? '$'+price.toExponential(3) : '\u2014') + '</td>\n        <td class="num">' + fmtUSD(cost) + '</td>\n      </tr>';
     }).join('');
     updateTableScrollIndicator();
   }
@@ -2020,7 +2021,7 @@ function updateTableScrollIndicator() {
 function refreshWsList() {
   const workspaces = getWorkspaces();
   const sel = document.getElementById('wsSelect');
-  sel.innerHTML = workspaces.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+  sel.innerHTML = workspaces.map(w => '<option value="' + escapeHtml(w.id) + '">' + escapeHtml(w.name) + '</option>').join('');
   if (!workspaces.length) {
     sel.innerHTML = '<option value="">No Workspace</option>';
     switchWorkspace(null);
@@ -2162,15 +2163,16 @@ function openPricingCalculator() {
     const inp = sp.input !== undefined ? sp.input : def.input;
     const out = sp.output !== undefined ? sp.output : def.output;
     const ch = sp.cache_hit !== undefined ? sp.cache_hit : def.cache_hit;
-    return `<div class="pricing-model-row">
-      <span class="model-label" title="${m}">${m}</span>
+    const em = escapeHtml(m);
+    return '<div class="pricing-model-row">
+      <span class="model-label" title="' + em + '">' + em + '</span>
       <span class="price-label">Input $/tok</span>
-      <input type="number" step="any" min="0" data-model="${m}" data-ptype="input" value="${inp.toExponential(4)}" placeholder="0">
+      <input type="number" step="any" min="0" data-model="' + em + '" data-ptype="input" value="' + inp.toExponential(4) + '" placeholder="0">
       <span class="price-label">Output $/tok</span>
-      <input type="number" step="any" min="0" data-model="${m}" data-ptype="output" value="${out.toExponential(4)}" placeholder="0">
+      <input type="number" step="any" min="0" data-model="' + em + '" data-ptype="output" value="' + out.toExponential(4) + '" placeholder="0">
       <span class="price-label">Cache $/tok</span>
-      <input type="number" step="any" min="0" data-model="${m}" data-ptype="cache_hit" value="${ch.toExponential(4)}" placeholder="0">
-    </div>`;
+      <input type="number" step="any" min="0" data-model="' + em + '" data-ptype="cache_hit" value="' + ch.toExponential(4) + '" placeholder="0">
+    </div>';
   }).join('');
 
   document.getElementById('pricingResults').classList.remove('show');
@@ -2250,12 +2252,12 @@ function recalcPricing() {
   tbody.innerHTML = modelEntries.map(([model, costs]) => {
     const md = costs.new - costs.orig;
     const mdClass = md > 0.005 ? 'diff-pos' : (md < -0.005 ? 'diff-neg' : '');
-    return `<tr>
-      <td>${model}</td>
-      <td class="num">${fmtUSD(costs.orig)}</td>
-      <td class="num">${fmtUSD(costs.new)}</td>
-      <td class="num ${mdClass}">${md >= 0 ? '+' : ''}${fmtUSD(md)}</td>
-    </tr>`;
+    return '<tr>
+      <td>' + escapeHtml(model) + '</td>
+      <td class="num">' + fmtUSD(costs.orig) + '</td>
+      <td class="num">' + fmtUSD(costs.new) + '</td>
+      <td class="num ' + mdClass + '">' + (md >= 0 ? '+' : '') + fmtUSD(md) + '</td>
+    </tr>';
   }).join('');
 
   document.getElementById('pricingResults').classList.add('show');
@@ -2372,7 +2374,7 @@ document.getElementById('chkRequests').addEventListener('change', runAnomalyDete
 function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   const btn = document.getElementById('themeToggle');
-  if (btn) btn.innerHTML = theme === 'dark' ? '&#9788;' : '&#9790;';
+  if (btn) btn.textContent = theme === 'dark' ? '\u2600' : '\u263E';
   try { localStorage.setItem('ds-dash-theme', theme); } catch(e) {}
   // Refresh charts so grid/tooltip colors match the active theme
   if (Object.values(charts).length) { refreshAll(); }
@@ -2416,7 +2418,7 @@ async function init() {
     toast(loaded ? 'Workspace loaded from browser storage' : 'Dashboard ready — create a workspace to begin');
   } catch(e) {
     console.error(e);
-    document.body.innerHTML = `<div style="padding:48px;text-align:center;color:var(--red)"><h2>Failed to initialize</h2><p>${e.message}</p><p style="color:var(--text-dim)">Try reloading the page or clearing browser storage.</p></div>`;
+    document.body.innerHTML = '<div style="padding:48px;text-align:center;color:var(--red)"><h2>Failed to initialize</h2><p>' + escapeHtml(e.message) + '</p><p style="color:var(--text-dim)">Try reloading the page or clearing browser storage.</p></div>';
   }
 }
 
