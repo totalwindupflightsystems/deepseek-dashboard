@@ -831,6 +831,30 @@ function clearWorkspaceData(id) {
   saveDB();
 }
 
+function setupCollapsiblePanel(toggleId, bodyId, chevronId) {
+  const toggle = document.getElementById(toggleId);
+  const body = document.getElementById(bodyId);
+  const chevron = document.getElementById(chevronId);
+  let collapsed = window.innerWidth <= 768;
+  if (collapsed) { body.classList.add('collapsed'); chevron.classList.add('collapsed'); }
+  toggle.addEventListener('click', function() {
+    collapsed = !collapsed;
+    body.classList.toggle('collapsed', collapsed);
+    chevron.classList.toggle('collapsed', collapsed);
+  });
+  window.addEventListener('resize', function() {
+    if (window.innerWidth > 768 && collapsed) {
+      collapsed = false;
+      body.classList.remove('collapsed');
+      chevron.classList.remove('collapsed');
+    } else if (window.innerWidth <= 768 && !collapsed) {
+      collapsed = true;
+      body.classList.add('collapsed');
+      chevron.classList.add('collapsed');
+    }
+  });
+}
+
 // -- CSV Parser --
 function parseCSV(text) {
   text = text.replace(/^\uFEFF/, '').trim();
@@ -2298,61 +2322,15 @@ document.getElementById('chkTokens').addEventListener('change', runAnomalyDetect
 document.getElementById('chkRequests').addEventListener('change', runAnomalyDetection);
 
 // Panel collapse toggle
-(function() {
-  const toggle = document.getElementById('anomalyToggle');
-  const body = document.getElementById('anomalyBody');
-  const chevron = document.getElementById('anomalyChevron');
-  let collapsed = window.innerWidth <= 768;
-  if (collapsed) { body.classList.add('collapsed'); chevron.classList.add('collapsed'); }
-  toggle.addEventListener('click', function() {
-    collapsed = !collapsed;
-    body.classList.toggle('collapsed', collapsed);
-    chevron.classList.toggle('collapsed', collapsed);
-  });
-  // Uncollapse on wider screens
-  window.addEventListener('resize', function() {
-    if (window.innerWidth > 768 && collapsed) {
-      collapsed = false;
-      body.classList.remove('collapsed');
-      chevron.classList.remove('collapsed');
-    } else if (window.innerWidth <= 768 && !collapsed) {
-      collapsed = true;
-      body.classList.add('collapsed');
-      chevron.classList.add('collapsed');
-    }
-  });
-})();
+setupCollapsiblePanel("anomalyToggle", "anomalyBody", "anomalyChevron");
 
 // -- Rate Limit Monitor Event Bindings --
 (function() {
-  const toggle = document.getElementById('rateToggle');
-  const body = document.getElementById('rateBody');
-  const chevron = document.getElementById('rateChevron');
+  setupCollapsiblePanel("rateToggle", "rateBody", "rateChevron");
   const tierSelect = document.getElementById('rateTierSelect');
   const customInputs = document.getElementById('rateCustomInputs');
   const customRpm = document.getElementById('rateCustomRpm');
   const customDay = document.getElementById('rateCustomDay');
-
-  let collapsed = window.innerWidth <= 768;
-  if (collapsed) { body.classList.add('collapsed'); chevron.classList.add('collapsed'); }
-
-  toggle.addEventListener('click', function() {
-    collapsed = !collapsed;
-    body.classList.toggle('collapsed', collapsed);
-    chevron.classList.toggle('collapsed', collapsed);
-  });
-
-  window.addEventListener('resize', function() {
-    if (window.innerWidth > 768 && collapsed) {
-      collapsed = false;
-      body.classList.remove('collapsed');
-      chevron.classList.remove('collapsed');
-    } else if (window.innerWidth <= 768 && !collapsed) {
-      collapsed = true;
-      body.classList.add('collapsed');
-      chevron.classList.add('collapsed');
-    }
-  });
 
   function saveAndRefresh() {
     const prefs = loadRatePrefs();
