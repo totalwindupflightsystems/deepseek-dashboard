@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  html-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install html-validate
+        run: npm install -g html-validate
+
+      - name: Validate HTML
+        run: html-validate index.html
+
+  deploy-check:
+    runs-on: ubuntu-latest
+    needs: [test, html-validate]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify index.html is deployable
+        run: |
+          test -f index.html || (echo "index.html missing" && exit 1)
+          echo "index.html exists ($(wc -l < index.html) lines, $(wc -c < index.html) bytes)"
