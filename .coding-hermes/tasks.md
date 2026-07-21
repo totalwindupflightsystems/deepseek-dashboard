@@ -1,66 +1,65 @@
-# Coding Hermes Tasks — deepseek-dashboard
+# DeepSeek Dashboard — Model Router Task Matrix
 
-## Active
+> **Core purpose:** Client-side analytics dashboard for DeepSeek API usage data — CSV upload, SQL.js persistence, Chart.js visualization, anomaly detection, rate-limit monitoring.
 
-- [ ] **DOC: Update README + SKILL.md stale file structure / line count claims** — README line 70 still says "It's one file" and "~2,400 lines of vanilla HTML/CSS/JS". SKILL.md line 28 describes index.html as the entire application. Project was split into 3 files in commit abf8553: index.html (224 lines), css/dashboard.css (321 lines), js/dashboard.js (1,933 lines). Total 2,478 lines. Update both docs to reflect split file structure with accurate line counts and describe the 3-file architecture. Files: README.md, SKILL.md.
+```
+ID | Task | Priority | Complexity | Deps | Tags | Model | Reasoning | Fallback
+```
 
-- [ ] **SECURITY: Add Content-Security-Policy meta tag** — No CSP in index.html. A client-side app loading external CDN scripts (JSZip from cdnjs, Chart.js + sql.js from jsdelivr) should have a CSP to mitigate XSS and script injection risks. Add a `<meta http-equiv="Content-Security-Policy">` tag with appropriate script-src directives for the 3 CDN origins plus 'unsafe-inline' for the inline theme flash script. Files: index.html.
+## Active Tasks
 
-## Backlog
+| ID | Task | Pri | Cpx | Deps | Tags | Model | Lvl | Fallback |
+|----|------|-----|-----|------|------|-------|-----|----------|
+| DOC-001 | Update README + SKILL.md stale file structure / line count claims | Low | 1 | — | ++documentation, +file-editing, -architecture | DeepSeek V4 Flash | Minimal | Hy3 |
+| SEC-001 | Add Content-Security-Policy meta tag | High | 2 | — | ++security, ++file-editing, +frontend | DeepSeek V4 Flash | Low | Step 3.7 Flash |
 
-## Queued (Never-Done Audit 2026-07-19)
+## Never-Done Audit (Standing)
 
-- [x] DEPS: sql.js 1.10.3 → 1.14.1 — 4 major versions behind (latest 1.14.1, 3 months old). Updated CDN URLs in index.html lines 10 and 2402 + README.md. All CDN URLs verified HTTP 200. (commit a91cd47^)
-- [x] DEPS: Chart.js 4.4.1 → 4.5.1 — minor version behind (latest 4.5.1, 9 months old). Updated CDN URL in index.html line 9 (switched from cdnjs to jsdelivr — cdnjs latest is 4.5.0). Verified HTTP 200. (commit a91cd47^)
-- [x] QUALITY: XSS hardening — 29 innerHTML calls with untrusted data. Added escapeHtml() helper, escaped all user-controlled data (model names, key names, workspace names, filenames, anomaly data, raw table rows, pricing rows), replaced innerHTML with textContent for badge/theme toggle icons. All 29 sites audited — 14 remaining are static or date/number-formatted. Added 'use strict'. JS syntax verified. (commit 706c599)
-- [x] TEST: No automated tests — 0 unit tests for CSV parser (`parseCSV`), anomaly detection (`detectAnomalies`), date grouping (`groupDays`, `getISOWeekStart`), pricing calculator (`recalcPricing`, `getAvgPriceForModel`). Added Vitest harness with 55 tests across 5 test files. (commit 9a7e76c)
-- [x] QUALITY: Add 'use strict' directive — entire 2,426-line file has no strict mode. Added at top of `<script>` block. (commit 706c599)
-- [x] QUALITY: DRY panel collapse — anomaly toggle (lines 2298-2321) and rate limit toggle (lines 2324-2352) have identical collapse/resize logic. Extracted to shared `setupCollapsiblePanel(toggleId, bodyId, chevronId)` helper. (commit 882a0be)
-- [x] DOC: Add CONTRIBUTING.md — no contribution guide exists. Added with how to test, code organization, CDN dep update instructions, coding conventions. (commit d40c0af)
-- [x] DOC: Add CHANGELOG.md — track version history. 26+ completed features across 20+ commits with no changelog. Retroactively populated from git log. (commit 262d879)
-- [x] CI: No CI/CD pipeline — added .github/workflows/ci.yml with 3 jobs: test (vitest, 55 tests), html-validate (index.html validation), deploy-check (verifies index.html exists). Added .htmlvalidate.json with project-appropriate rule overrides (no-inline-style off, no-implicit-button-type off). (commit 35eb5fd)
-- [x] DUCKBRAIN: Document architecture patterns — deepseek-dashboard architecture not in DuckBrain. Save: CSV parse strategy (simple char-by-char, quoted-field support), sql.js IndexedDB persistence pattern, virtual scroll row-pooling approach, anomaly detection z-score algorithm, diff-based re-upload logic. (6 entries written to deepseek-dashboard namespace: overview, csv-parser, sqljs-persistence, anomaly-detection, diff-upload, virtual-scroll)
-- [x] PITFALL: CSV parser edge cases — `parseCSV` char-by-char parser (line 828) silently drops quoted fields with embedded newlines and may misparse commas inside quotes. The `continue` after `"` toggle (line 837) trims the quote character but doesn't handle escaped quotes (`""`). DeepSeek exports are simple but format changes could break silently. Fixed: rewrote parseCSV as single-pass character-by-character state machine. Handles `""` as escaped quote, embedded newlines in quoted fields, mixed line endings. 5 new edge-case tests added (60 total, all passing). Fixed in both js/dashboard.js and index.html inline copy. (commit 9457e64)
-- [x] QUALITY: Monolithic 2,426-line file — HTML, CSS (lines 11-367), and JS (lines 569-2423) all in one file. Consider splitting CSS to `<style>` external and JS to `<script src>`. Low priority but aids maintainability. Fixed: extracted CSS to css/dashboard.css (321 lines), moved all JS to js/dashboard.js (1,915 lines), removed inline blocks. index.html now 224 lines. 60/60 tests pass. (commit abf8553)
-- [x] PERF: No debounce on filter changes — fixed: debounce() utility (300ms), wired to all 4 filter selects (commit 2919a6b) — `periodSelect`, `modelSelect`, `keySelect`, `granularitySelect` all trigger `refreshAll` on every `change` event with no debounce. Rapid filter switching triggers redundant chart destruction/re-creation and SQL queries.
-- [x] PERF: Full dataset in memory — fixed: TABLE_ROW_LIMIT=50K cap with COUNT query, cap notice in row count display. Full windowed SQL (OFFSET on scroll) would require _initVScroll refactor, deferred (commit 2919a6b) — `renderTable` loads all rows for virtual scroll (line 1933 comment: "Remove LIMIT 1000 - fetch all"). For 6+ months of heavy usage this could be 100K+ rows in the JS array. Consider windowed SQL queries for very large datasets.
+| ID | Task | Pri | Cpx | Deps | Tags | Model | Lvl | Fallback |
+|----|------|-----|-----|------|------|-------|-----|----------|
+| NEVER-DONE | 11-point audit: spec alignment, doc coverage, test gaps, package upgrades, pitfall hunt, performance, endpoint verification, CI/CD, DuckBrain sync, code quality, middle-out wiring | Low | 3 | — | ++terminal, ++file-editing, ++code-review, +testing | DeepSeek V4 Pro | Medium | GLM-5.2 |
 
-## Completed
+## Assumptions
+- All production bugs addressed in prior ticks; remaining tasks are documentation/security hygiene
+- No runtime dependencies (pure HTML/CSS/JS); no server needed
+- CDN deps (Chart.js, JSZip, sql.js) are externally maintained
 
-- ✅ DOC: README feature table updated with 10+ implemented features — rate limit, anomaly detection, model distribution, pricing calculator, PNG export, virtual scrolling, multi-workspace, granularity, theme toggle, mobile refinements (commit 21882be)
-- ✅ DOC: Sample data section references non-existent files — ZIPs are gitignored, no sample-data/ directory (commit c545db0)
-- ✅ DOC: OpenRouter comparison claimed in README but not implemented — removed stale claims in 3 sections (Privacy, Features, Known Limitations); feature was intentionally removed in 3959602
-- ✅ DOC: Fix README line count claim — says ~1,100 lines, actual is 2,184
-- ✅ DOC: Fix README Chart.js version — says 4.4.7, actual import is 4.4.1
-- ✅ DOC: Add sql.js to README tech stack table
-- ✅ DOC: Update README localStorage claim — says "no localStorage by default" but theme persistence uses it immediately
-- ✅ P1: Rate limit monitoring panel — collapsible panel showing request rate metrics, configurable API tier (Free/Paid/Enterprise/Custom), usage gauges, peak day analysis, top request-volume days list, tier preference persisted in localStorage. (commit cb63352)
-- ✅ P3: Per-hour / weekly / monthly granularity option — granularity selector (Daily/Weekly/Monthly), client-side date grouping via groupDays(), labels for weekly/monthly views, anomaly markers gated to daily, preference persisted in localStorage (commit bba5124)
-- ✅ P2: Anomaly detection / spike alerts (TASK-001) — z-score based detection, collapsible panel with threshold slider & metric checkboxes, scatter markers on Token/Spend charts, severity levels, localStorage prefs (commit e6a30d0)
-- ✅ P3: Visual polish and desktop/mobile refinements — rounded bar corners, responsive 8/9 px fonts, theme-aware grid/tooltip colors, mobile-only bottom sheet, longer workspace dropdown, drop-zone format help, table scroll indicator (commit 7a3d6e1)
-- ✅ P1: Clarify input vs output token usage visuals — combine input tokens on time chart, rename prompt/completion chart, split KPIs, human-readable table types, input/output cost split on spend chart (commit f671695)
-- ✅ P6: Mobile refinements — swipe to dismiss toast, bottom sheet for filters (commit 9036365)
-- ✅ P4: Token pricing calculator (commit cfec1a7)
-- ✅ P5: Dark/light theme toggle (commit 85ff11c)
-- ✅ P3: Virtual scrolling for large data (commit 12dd2f8)
-- ✅ P2: Multiple file upload support (commit 35edc1d)
-- ✅ Single-file HTML dashboard with Chart.js + JSZip
-- ✅ sql.js persistence via IndexedDB
-- ✅ Multi-workspace support (create/rename/delete/switch)
-- ✅ Diff management on re-upload (replace matching date range)
-- ✅ Clear button per workspace
-- ✅ Upload history log
-- ✅ KPI cards + 6 chart panels
-- ✅ CSV export (aggregated + raw)
-- ✅ GitHub Pages deployment
-- ✅ P1: Model distribution over time (stacked area chart) — added Model Distribution Over Time wide chart, renderModelDistChart function, destroy handling and PNG download (commit b27bbff)
-- ✅ P1: OpenRouter comparison overlay — fetch OR Analytics API data, overlay dashed usage curves on Token and Spend charts, handle API errors, comparison KPI card (commit a2c5e71)
-- ✅ P2: Chart export as PNG — download button on each Chart.js chart card, toBase64Image(), filename includes chart type + date range
-- ✅ DOC: README Sample Data section claims "repository includes real June 2026 export" but ZIPs are gitignored and no sample-data/ directory exists. Prior DOC task (c545db0) only fixed SKILL.md, missed README. (commit 79ff469)
-- ✅ DOC: Line count claims say ~2,200 but actual index.html is 2,426 lines. Affects README line 60 and SKILL.md line 33. (commit 79ff469)
-- ✅ DEPS: vitest 2.1.9 → 4.1.10 — 2 major versions behind. No config changes needed, 60/60 tests pass. (commit da3206b)
-- ✅ DEPS: jsdom 25.0.1 → 29.1.1 — 4 major versions behind. No test changes needed, 60/60 tests pass. (commit da3206b)
+## Routing Notes
+- DOC/SEC tasks are mechanical: single-file edits, copy changes → V4 Flash @ Minimal/Low
+- NEVER-DONE audit needs multi-package scan + DuckBrain CRUD → V4 Pro @ Medium
+- No vision or architecture tasks; all tools available in browser sandbox
 
-## [ ] NEVER-DONE — Run coding-hermes-never-done 11-point audit
+## Execution Order
+1. SEC-001 (CSP — security first)
+2. DOC-001 (README accuracy)
+3. NEVER-DONE (periodic audit — runs when board empty)
 
-Load coding-hermes-never-done skill. Run ALL 11 checks: spec alignment, doc coverage, test gaps, package upgrades, pitfall hunt, performance audit, endpoint verification, CI/CD health, DuckBrain sync, code quality, middle-out wiring. Create a task for EVERY gap found. This task is never complete — the audit always finds something.
+## Escalation Conditions
+- CDN dependency breaks → escalate to DEPS task, route to V4 Pro
+- CSP breaks functionality → escalate to V4 Pro for debugging
+- NEVER-DONE audit finds >5 gaps → split into per-gap tasks, reroute individually
+
+---
+
+## Completed Tasks (2026-07)
+
+| ID | Description |
+|----|-------------|
+| DEPS-001 | sql.js 1.10.3 → 1.14.1 |
+| DEPS-002 | Chart.js 4.4.1 → 4.5.1 |
+| QUALITY-001 | XSS hardening — 29 innerHTML sites audited + escapeHtml |
+| TEST-001 | 55 Vitest tests across 5 test files |
+| QUALITY-002 | 'use strict' directive |
+| QUALITY-003 | DRY panel collapse — extract setupCollapsiblePanel |
+| DOC-002 | CONTRIBUTING.md |
+| DOC-003 | CHANGELOG.md |
+| CI-001 | GitHub Actions CI: vitest + html-validate + deploy-check |
+| DUCKBRAIN-001 | Architecture patterns documented (6 entries) |
+| PITFALL-001 | CSV parser edge cases fixed (state machine rewrite) |
+| QUALITY-004 | Monolithic file split: index.html → 3 files (HTML/CSS/JS) |
+| PERF-001 | Debounce on filter changes (300ms) |
+| PERF-002 | TABLE_ROW_LIMIT=50K cap |
+| DEPS-003 | vitest 2.1.9 → 4.1.10 |
+| DEPS-004 | jsdom 25.0.1 → 29.1.1 |
+| DOC-004 | README feature table + sample data fixes |
+| PRIOR-* | 30+ prior completions: rate limits, anomaly detection, model distribution, pricing, PNG export, virtual scrolling, multi-workspace, granularity, theme toggle, mobile, OpenRouter comparison, CSV export, KPI cards, sql.js persistence, diff management |
