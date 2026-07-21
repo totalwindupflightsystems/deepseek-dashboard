@@ -4,6 +4,9 @@
 
 ## Backlog
 
+- [ ] DEPS: vitest 2.1.9 → 4.1.10 — 2 major versions behind (latest 4.1.10). Investigate breaking changes, upgrade vitest.config if needed, ensure all 60 tests pass.
+- [ ] DEPS: jsdom 25.0.1 → 29.1.1 — 4 major versions behind (latest 29.1.1). Investigate breaking changes, upgrade, ensure all 60 tests pass.
+
 ## Queued (Never-Done Audit 2026-07-19)
 
 - [x] DEPS: sql.js 1.10.3 → 1.14.1 — 4 major versions behind (latest 1.14.1, 3 months old). Updated CDN URLs in index.html lines 10 and 2402 + README.md. All CDN URLs verified HTTP 200. (commit a91cd47^)
