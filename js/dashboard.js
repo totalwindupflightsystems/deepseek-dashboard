@@ -8,6 +8,18 @@ let _currentDays = [];
 let _groupedDays = [];
 const IDB_NAME = 'deepseek-dashboard';
 const IDB_STORE = 'sqlite-db';
+const DEBOUNCE_MS = 300;
+const TABLE_ROW_LIMIT = 50000;
+
+// -- Utilities --
+function debounce(fn, ms) {
+  let timer = null;
+  return function() {
+    const ctx = this, args = arguments;
+    clearTimeout(timer);
+    timer = setTimeout(function() { fn.apply(ctx, args); }, ms);
+  };
+}
 const DB_KEY = 'main';
 
 // Virtual scroller state
@@ -1471,9 +1483,14 @@ function renderTable(days, modelFilter) {
   const params = [activeWsId, start, end];
   if (modelFilter && modelFilter !== 'all') { where += ' AND model = ?'; params.push(modelFilter); }
 
-  // Remove LIMIT 1000 - fetch all matching rows
-  const r = db.exec(`SELECT utc_date, model, api_key_name, type, amount, price, (price*amount) as cost FROM token_usage WHERE ${where} ORDER BY utc_date DESC, model, type`, params);
+  // Count total matching rows first (fast COUNT query)
+  const countR = db.exec(`SELECT COUNT(*) FROM token_usage WHERE ${where}`, params);
+  const totalCount = countR.length ? countR[0].values[0][0] : 0;
+
+  // Fetch with row cap for memory safety — virtual scroll renders windows from this array
+  const r = db.exec(`SELECT utc_date, model, api_key_name, type, amount, price, (price*amount) as cost FROM token_usage WHERE ${where} ORDER BY utc_date DESC, model, type LIMIT ?`, [...params, TABLE_ROW_LIMIT]);
   const rows = r.length ? r[0].values : [];
+  const capped = totalCount > TABLE_ROW_LIMIT;
 
   const rowCountEl = document.getElementById('rowCount');
   const table = document.getElementById('dataTable');
@@ -1496,7 +1513,7 @@ function renderTable(days, modelFilter) {
     return;
   }
 
-  rowCountEl.textContent = `(${rows.length} rows)`;
+  rowCountEl.textContent = `(${rows.length} rows${capped ? ', capped at ' + TABLE_ROW_LIMIT.toLocaleString() + ' of ' + totalCount.toLocaleString() : ''})`;
 
   if (rows.length > 500) {
     // Use virtual scrolling for large datasets
@@ -1611,8 +1628,9 @@ document.getElementById('modalConfirm').addEventListener('click', () => {
 });
 document.getElementById('modalInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('modalConfirm').click(); });
 
+const _debouncedRefresh = debounce(refreshAll, DEBOUNCE_MS);
 ['periodSelect','modelSelect','keySelect','granularitySelect'].forEach(id => {
-  document.getElementById(id)?.addEventListener('change', refreshAll);
+  document.getElementById(id)?.addEventListener('change', _debouncedRefresh);
 });
 // Persist granularity preference
 document.getElementById('granularitySelect')?.addEventListener('change', function() {
