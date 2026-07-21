@@ -61,4 +61,10 @@ ID | Task | Priority | Complexity | Deps | Tags | Model | Reasoning | Fallback
 | DEPS-003 | vitest 2.1.9 → 4.1.10 |
 | DEPS-004 | jsdom 25.0.1 → 29.1.1 |
 | DOC-004 | README feature table + sample data fixes |
-| PRIOR-* | 30+ prior completions: rate limits, anomaly detection, model distribution, pricing, PNG export, virtual scrolling, multi-workspace, granularity, theme toggle, mobile, OpenRouter comparison, CSV export, KPI cards, sql.js persistence, diff management |
+|| PRIOR-* | 30+ prior completions: rate limits, anomaly detection, model distribution, pricing, PNG export, virtual scrolling, multi-workspace, granularity, theme toggle, mobile, OpenRouter comparison, CSV export, KPI cards, sql.js persistence, diff management |
+
+---
+
+## Idle Tick Tracking (2026-07-21)
+
+**Idle tick #1** — Board empty, 11-point audit ran. Findings: stale README line counts fixed (f705112). No actionable gaps. All deps current, 60/60 tests pass, CI green, GH Pages deployed, DuckBrain synced. Cooldown: unchanged (idle tick <3, no action).
