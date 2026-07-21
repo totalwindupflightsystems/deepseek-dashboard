@@ -856,23 +856,78 @@ function setupCollapsiblePanel(toggleId, bodyId, chevronId) {
 }
 
 // -- CSV Parser --
+// Character-by-character parser. Handles:
+//   - Quoted fields with embedded commas
+//   - Quoted fields with embedded newlines (multi-line fields)
+//   - Escaped double quotes inside quoted fields ("")
+//   - BOM prefix stripping
+//   - Row length mismatch detection (skips malformed rows)
+//   - Mixed \r\n, \r, and \n line endings
 function parseCSV(text) {
-  text = text.replace(/^\uFEFF/, '').trim();
-  const lines = text.split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.trim());
+  text = text.replace(/^\uFEFF/, '');               // strip BOM
+  if (!text.trim()) return [];
+
   const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const vals = []; let cur = '', inQ = false;
-    for (const ch of lines[i]) {
-      if (ch === '"') { inQ = !inQ; continue; }
-      if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ''; continue; }
-      cur += ch;
+  const vals = [];
+  let cur = '', inQ = false;
+  let headers = null;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inQ) {
+      if (ch === '"') {
+        // Escaped quote: "" inside quoted field → literal "
+        if (i + 1 < text.length && text[i + 1] === '"') {
+          cur += '"';
+          i++;                                        // skip second quote
+        } else {
+          inQ = false;                                // closing quote
+        }
+      } else {
+        cur += ch;                                    // newlines, commas, everything kept
+      }
+    } else {
+      if (ch === '"') {
+        inQ = true;                                   // opening quote
+      } else if (ch === ',') {
+        vals.push(cur.trim());
+        cur = '';
+      } else if (ch === '\r') {
+        // \r\n or standalone \r → row terminator
+        if (i + 1 < text.length && text[i + 1] === '\n') i++;
+        vals.push(cur.trim());
+        cur = '';
+        if (!headers) {
+          headers = vals.slice();                    // first row = headers
+        } else if (vals.length === headers.length) {
+          const row = {}; headers.forEach((h, j) => row[h] = vals[j]); rows.push(row);
+        }
+        vals.length = 0;
+      } else if (ch === '\n') {
+        // standalone \n → row terminator
+        vals.push(cur.trim());
+        cur = '';
+        if (!headers) {
+          headers = vals.slice();
+        } else if (vals.length === headers.length) {
+          const row = {}; headers.forEach((h, j) => row[h] = vals[j]); rows.push(row);
+        }
+        vals.length = 0;
+      } else {
+        cur += ch;
+      }
     }
-    vals.push(cur.trim());
-    if (vals.length !== headers.length) continue;
-    const row = {}; headers.forEach((h,j) => row[h] = vals[j]); rows.push(row);
   }
+
+  // Handle last field/row when file doesn't end with newline
+  if (cur || vals.length > 0) {
+    vals.push(cur.trim());
+    if (headers && vals.length === headers.length && vals.some(v => v !== '')) {
+      const row = {}; headers.forEach((h, j) => row[h] = vals[j]); rows.push(row);
+    }
+  }
+
   return rows;
 }
 
