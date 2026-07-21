@@ -2,6 +2,10 @@
 
 ## Active
 
+- [ ] **DOC: Update README + SKILL.md stale file structure / line count claims** — README line 70 still says "It's one file" and "~2,400 lines of vanilla HTML/CSS/JS". SKILL.md line 28 describes index.html as the entire application. Project was split into 3 files in commit abf8553: index.html (224 lines), css/dashboard.css (321 lines), js/dashboard.js (1,933 lines). Total 2,478 lines. Update both docs to reflect split file structure with accurate line counts and describe the 3-file architecture. Files: README.md, SKILL.md.
+
+- [ ] **SECURITY: Add Content-Security-Policy meta tag** — No CSP in index.html. A client-side app loading external CDN scripts (JSZip from cdnjs, Chart.js + sql.js from jsdelivr) should have a CSP to mitigate XSS and script injection risks. Add a `<meta http-equiv="Content-Security-Policy">` tag with appropriate script-src directives for the 3 CDN origins plus 'unsafe-inline' for the inline theme flash script. Files: index.html.
+
 ## Backlog
 
 ## Queued (Never-Done Audit 2026-07-19)
