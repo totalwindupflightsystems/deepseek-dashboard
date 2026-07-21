@@ -11,7 +11,6 @@ ID | Task | Priority | Complexity | Deps | Tags | Model | Reasoning | Fallback
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Lvl | Fallback |
 |----|------|-----|-----|------|------|-------|-----|----------|
 | DOC-001 | Update README + SKILL.md stale file structure / line count claims | Low | 1 | — | ++documentation, +file-editing, -architecture | DeepSeek V4 Flash | Minimal | Hy3 |
-| SEC-001 | Add Content-Security-Policy meta tag | High | 2 | — | ++security, ++file-editing, +frontend | DeepSeek V4 Flash | Low | Step 3.7 Flash |
 
 ## Never-Done Audit (Standing)
 
@@ -30,13 +29,11 @@ ID | Task | Priority | Complexity | Deps | Tags | Model | Reasoning | Fallback
 - No vision or architecture tasks; all tools available in browser sandbox
 
 ## Execution Order
-1. SEC-001 (CSP — security first)
-2. DOC-001 (README accuracy)
-3. NEVER-DONE (periodic audit — runs when board empty)
+1. DOC-001 (README accuracy)
+2. NEVER-DONE (periodic audit — runs when board empty)
 
 ## Escalation Conditions
 - CDN dependency breaks → escalate to DEPS task, route to V4 Pro
-- CSP breaks functionality → escalate to V4 Pro for debugging
 - NEVER-DONE audit finds >5 gaps → split into per-gap tasks, reroute individually
 
 ---
@@ -45,6 +42,7 @@ ID | Task | Priority | Complexity | Deps | Tags | Model | Reasoning | Fallback
 
 | ID | Description |
 |----|-------------|
+| SEC-001 | Add Content-Security-Policy meta tag (commit cbe2644) |
 | DEPS-001 | sql.js 1.10.3 → 1.14.1 |
 | DEPS-002 | Chart.js 4.4.1 → 4.5.1 |
 | QUALITY-001 | XSS hardening — 29 innerHTML sites audited + escapeHtml |
