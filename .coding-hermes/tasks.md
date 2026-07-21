@@ -10,7 +10,7 @@ ID | Task | Priority | Complexity | Deps | Tags | Model | Reasoning | Fallback
 
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Lvl | Fallback |
 |----|------|-----|-----|------|------|-------|-----|----------|
-| DOC-001 | Update README + SKILL.md stale file structure / line count claims | Low | 1 | — | ++documentation, +file-editing, -architecture | DeepSeek V4 Flash | Minimal | Hy3 |
+| — | (none) | — | — | — | — | — | — | — |
 
 ## Never-Done Audit (Standing)
 
@@ -42,6 +42,7 @@ ID | Task | Priority | Complexity | Deps | Tags | Model | Reasoning | Fallback
 
 | ID | Description |
 |----|-------------|
+| DOC-001 | Update README + SKILL.md stale file structure / line count claims (commit 2f8d82c) |
 | SEC-001 | Add Content-Security-Policy meta tag (commit cbe2644) |
 | DEPS-001 | sql.js 1.10.3 → 1.14.1 |
 | DEPS-002 | Chart.js 4.4.1 → 4.5.1 |
