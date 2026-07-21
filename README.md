@@ -67,15 +67,17 @@ Just open the link — no install, no signup, nothing. Your data stays in your b
 
 ## How to Verify the Code
 
-It's one file. Open `index.html` in any text editor. Read it. No obfuscation, no minification, no hidden requests. The entire application is ~2,400 lines of vanilla HTML/CSS/JS.
+It's three files. Open `index.html`, `js/dashboard.js`, and `css/dashboard.css` in any text editor. Read them. No obfuscation, no minification, no hidden requests. The application is ~2,500 lines of vanilla HTML/CSS/JS with a 749-line Vitest test suite.
 
 ## Tech Stack
 
 - **JSZip 3.10.1** — ZIP extraction (CDN, version-pinned)
 - **Chart.js 4.5.1** — Visualizations (CDN, version-pinned)
 - **sql.js 1.14.1** — SQLite persistence via IndexedDB (CDN)
-- **Vanilla JS** — No framework, no build step, no npm, no bundler
+- **Vanilla JS** — No framework, no build step, no bundler (npm used for vitest + jsdom testing only)
 - **CSS Grid + Flexbox** — Responsive layout, no CSS framework
+- **Testing** — vitest 4.1.10 + jsdom 29.1.1, 6 test files, 749 lines
+- **CI/CD** — GitHub Actions (vitest + html-validate + deploy-check)
 
 ## Data Format
 
