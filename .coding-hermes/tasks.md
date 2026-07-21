@@ -4,9 +4,6 @@
 
 ## Backlog
 
-- [ ] DEPS: vitest 2.1.9 → 4.1.10 — 2 major versions behind (latest 4.1.10). Investigate breaking changes, upgrade vitest.config if needed, ensure all 60 tests pass.
-- [ ] DEPS: jsdom 25.0.1 → 29.1.1 — 4 major versions behind (latest 29.1.1). Investigate breaking changes, upgrade, ensure all 60 tests pass.
-
 ## Queued (Never-Done Audit 2026-07-19)
 
 - [x] DEPS: sql.js 1.10.3 → 1.14.1 — 4 major versions behind (latest 1.14.1, 3 months old). Updated CDN URLs in index.html lines 10 and 2402 + README.md. All CDN URLs verified HTTP 200. (commit a91cd47^)
@@ -57,6 +54,8 @@
 - ✅ P2: Chart export as PNG — download button on each Chart.js chart card, toBase64Image(), filename includes chart type + date range
 - ✅ DOC: README Sample Data section claims "repository includes real June 2026 export" but ZIPs are gitignored and no sample-data/ directory exists. Prior DOC task (c545db0) only fixed SKILL.md, missed README. (commit 79ff469)
 - ✅ DOC: Line count claims say ~2,200 but actual index.html is 2,426 lines. Affects README line 60 and SKILL.md line 33. (commit 79ff469)
+- ✅ DEPS: vitest 2.1.9 → 4.1.10 — 2 major versions behind. No config changes needed, 60/60 tests pass. (commit da3206b)
+- ✅ DEPS: jsdom 25.0.1 → 29.1.1 — 4 major versions behind. No test changes needed, 60/60 tests pass. (commit da3206b)
 
 ## [ ] NEVER-DONE — Run coding-hermes-never-done 11-point audit
 
