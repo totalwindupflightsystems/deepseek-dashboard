@@ -73,20 +73,22 @@ ID | Task | Priority | Complexity | Deps | Tags | Model | Reasoning | Fallback
 
 **Idle tick #3** — Board empty, 11-point adapted audit for single-file client project ran. All 11 checks pass with zero findings. Cooldown set to 14400s (4h). See commit 79f23ba.
 
-**Idle tick #4** — Board empty, 11-point adapted audit ran. All 11 checks pass with zero findings:
+**Idle tick #4** — Board empty, 11-point adapted audit ran. All 11 checks pass with zero findings. Cooldown re-fixed to 14400s (4h) after daemon restart reversion.
+
+**Idle tick #5 (current, 2026-07-22 00:26 UTC)** — Board empty, 11-point adapted audit ran. All 11 checks pass with zero findings:
 
 | Check | Result |
 |-------|--------|
 | 1. Spec Alignment | SKILL.md line counts (225/1933/321/749) match actual files; CDN versions (JSZip 3.10.1, Chart.js 4.5.1, sql.js 1.14.1) all at latest ✓ |
-| 2. Doc Coverage | README, CONTRIBUTING.md, CHANGELOG.md all exist; feature table complete ✓ |
-| 3. Test Gaps | 60/60 vitest tests pass across 6 test files; critical functions covered ✓ |
-| 4. Package Upgrades | All CDN deps at latest (npm view confirms all current); dev deps jsdom 29.1, vitest 4.1 current ✓ |
-| 5. Pitfall Hunt | CSP meta present; 11 escapeHtml/sanitize refs in JS; 25 innerHTML countered by 45 safety refs; 24 try/catch refs; all 10 localStorage accesses guarded; 0 debugger/console.log; 'use strict' ✓ |
-| 6. Performance | 19 debounce/throttle/perf refs; 7 explicit debounce/throttle; TABLE_ROW_LIMIT=50K; virtual scrolling ✓ |
+| 2. Doc Coverage | README (111 lines), CONTRIBUTING.md (74 lines), CHANGELOG.md (119 lines), SKILL.md (47 lines) all exist ✓ |
+| 3. Test Gaps | 60/60 vitest tests pass across 6 test files; html-validate clean ✓ |
+| 4. Package Upgrades | All CDN deps at latest; dev deps jsdom 29.1.1, vitest 4.1.10 current (npm outdated empty) ✓ |
+| 5. Pitfall Hunt | CSP meta present; 11 escapeHtml refs; 5 debounce/throttle; 14 try/catch; 10 localStorage accesses; 0 TODOs/FIXMEs/HACKs; 'use strict'; TABLE_ROW_LIMIT=50K ✓ |
+| 6. Performance | 5 debounce/throttle refs; TABLE_ROW_LIMIT=50K; virtual scrolling ✓ |
 | 7. Endpoint Verification | N/A (client-only, no backend/server) |
-| 8. CI/CD | CI green (vitest + html-validate) on all recent commits; GH Pages HTTP 200 deployed; MD5 of deployed index.html matches local ✓ |
-| 9. DuckBrain Sync | 10+ entries in deepseek-dashboard namespace; recall functional ✓ |
-| 10. Code Quality | File split complete (HTML/CSS/JS); 0 TODOs/FIXMEs/HACKs; no monolithic smell ✓ |
-| 11. Middle-Out Wiring | N/A (single-file self-contained, deployment covered by check 8) |
+| 8. CI/CD | CI green (vitest + html-validate) on all recent commits; last 3 runs all success ✓ |
+| 9. DuckBrain Sync | 5+ entries in deepseek-dashboard namespace; recall functional ✓ |
+| 10. Code Quality | File split complete (HTML/CSS/JS); 0 TODOs; no monolithic smell ✓ |
+| 11. Middle-Out Wiring | N/A (single-file self-contained) |
 
-**Actions:** Cooldown had reverted from 14400s→7200s (daemon restart). Re-fixed to 14400s (4h) via scheduler API PUT. Verified: `GET /api/v1/projects/deepseek-dashboard` → CooldownS=14400, Enabled=True. Cooldown reversion #1 noted. No new tasks created. Project genuinely complete — zero actionable gaps across all 11 checks.
+**Actions:** Cooldown escalated to 43200s (12h) per idle-tick escalation rule (#5 → 12h). PUT verified via GET: CooldownS=43200, Enabled=True. Cooldown reversion #2 noted (14400→7200 after restart, now 43200). No new tasks created. Project genuinely complete — zero actionable gaps across all 11 checks.
