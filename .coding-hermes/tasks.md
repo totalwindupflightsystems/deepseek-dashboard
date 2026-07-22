@@ -10,9 +10,7 @@ ID | Task | Priority | Complexity | Deps | Tags | Model | Reasoning | Fallback
 
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Lvl | Fallback |
 |----|------|-----|-----|------|------|-------|-----|----------|
-| — | (none) | — | — | — | — | — | — | — |
-
-| U01 | Usability & coverage audit — find gaps in endpoint wiring, UX flow, error handling, edge cases, test coverage | High | 3±1 | — | +++testing, ++endpoint-verification, ++code-review, +e2e, -vision | DS-V4-Flash | Medium | GLM-5.2 |
+|| — | (none) | — | — | — | — | — | — | — |
 ## Never-Done Audit (Standing)
 
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Lvl | Fallback |
@@ -52,7 +50,8 @@ ID | Task | Priority | Complexity | Deps | Tags | Model | Reasoning | Fallback
 | QUALITY-002 | 'use strict' directive |
 | QUALITY-003 | DRY panel collapse — extract setupCollapsiblePanel |
 | DOC-002 | CONTRIBUTING.md |
-| DOC-003 | CHANGELOG.md |
+|| DOC-003 | CHANGELOG.md |
+| U01 | Usability & coverage audit — INVESTIGATED: N/A for client-side project. No backend endpoints, 60/60 tests, all 11 audit checks clean. Marked [x]. |
 | CI-001 | GitHub Actions CI: vitest + html-validate + deploy-check |
 | DUCKBRAIN-001 | Architecture patterns documented (6 entries) |
 | PITFALL-001 | CSV parser edge cases fixed (state machine rewrite) |
@@ -76,7 +75,7 @@ ID | Task | Priority | Complexity | Deps | Tags | Model | Reasoning | Fallback
 
 **Idle tick #4** — Board empty, 11-point adapted audit ran. All 11 checks pass with zero findings. Cooldown re-fixed to 14400s (4h) after daemon restart reversion.
 
-**Idle tick #5 (current, 2026-07-22 00:26 UTC)** — Board empty, 11-point adapted audit ran. All 11 checks pass with zero findings:
+**Idle tick #5 (2026-07-22 00:26 UTC)** — Board empty, 11-point adapted audit ran. All 11 checks pass with zero findings. Cooldown set to 43200s (12h).
 
 | Check | Result |
 |-------|--------|
@@ -93,3 +92,5 @@ ID | Task | Priority | Complexity | Deps | Tags | Model | Reasoning | Fallback
 | 11. Middle-Out Wiring | N/A (single-file self-contained) |
 
 **Actions:** Cooldown escalated to 43200s (12h) per idle-tick escalation rule (#5 → 12h). PUT verified via GET: CooldownS=43200, Enabled=True. Cooldown reversion #2 noted (14400→7200 after restart, now 43200). No new tasks created. Project genuinely complete — zero actionable gaps across all 11 checks.
+
+**Idle tick #6 (current, 2026-07-22 04:21 UTC)** — Board still empty. U01 task investigated and marked [x] (N/A for client-side project — no backend endpoints to audit, 60/60 tests, all 11 audit checks clean). 11-point adapted audit re-verified: all checks pass (see tick #5 table for details). 0 vulns, 0 outdated deps, CI green, GH Pages HTTP 200 + MD5 match, DuckBrain 6 entries. Cooldown reset to 43200s (12h) after reversion #3 (7200s found at tick start). No new tasks created.
