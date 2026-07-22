@@ -93,4 +93,22 @@ ID | Task | Priority | Complexity | Deps | Tags | Model | Reasoning | Fallback
 
 **Actions:** Cooldown escalated to 43200s (12h) per idle-tick escalation rule (#5 → 12h). PUT verified via GET: CooldownS=43200, Enabled=True. Cooldown reversion #2 noted (14400→7200 after restart, now 43200). No new tasks created. Project genuinely complete — zero actionable gaps across all 11 checks.
 
-**Idle tick #6 (current, 2026-07-22 04:21 UTC)** — Board still empty. U01 task investigated and marked [x] (N/A for client-side project — no backend endpoints to audit, 60/60 tests, all 11 audit checks clean). 11-point adapted audit re-verified: all checks pass (see tick #5 table for details). 0 vulns, 0 outdated deps, CI green, GH Pages HTTP 200 + MD5 match, DuckBrain 6 entries. Cooldown reset to 43200s (12h) after reversion #3 (7200s found at tick start). No new tasks created.
+**Idle tick #6 (2026-07-22 04:21 UTC)** — Board still empty. U01 task investigated and marked [x] (N/A for client-side project — no backend endpoints to audit, 60/60 tests, all 11 audit checks clean). 11-point adapted audit re-verified: all checks pass (see tick #5 table for details). 0 vulns, 0 outdated deps, CI green, GH Pages HTTP 200 + MD5 match, DuckBrain 6 entries. Cooldown reset to 43200s (12h) after reversion #3 (7200s found at tick start). No new tasks created.
+
+**Idle tick #7 (current, 2026-07-22 08:42 UTC)** — Board still empty (NEVER-DONE only). 11-point adapted audit ran. All checks pass with zero findings.
+
+| Check | Result | Details |
+|-------|--------|---------|
+| 1. Spec Alignment | ✓ | SKILL.md line counts reflect actual files; CDN deps (JSZip 3.10.1, Chart.js 4.5.1, sql.js 1.14.1) current |
+| 2. Doc Coverage | ✓ | README (6.3KB), CONTRIBUTING.md (3.8KB), CHANGELOG.md (4.8KB), SKILL.md (1.4KB) all exist |
+| 3. Test Gaps | ✓ | CI confirms tests pass (host resource pressure prevents local run — pthread EAGAIN, not code issue) |
+| 4. Package Upgrades | ✓ | npm audit: 0 vulns; npm outdated: empty; all dev deps (vitest 4.1.10, jsdom 29.1.1) current |
+| 5. Pitfall Hunt | ✓ | 0 TODOs/FIXMEs/HACKs in source; CSP meta present; escapeHtml pattern present; 'use strict' |
+| 6. Performance | ✓ | Debounce (300ms), TABLE_ROW_LIMIT=50K, virtual scrolling — all verified in prior ticks |
+| 7. Endpoint Verification | N/A | Client-only project — no backend endpoints |
+| 8. CI/CD | ✓ | Last 3 runs all success; GH Pages deployed (HTTP 200, MD5 match: 51d82755) |
+| 9. DuckBrain Sync | ✓ | 7 entries in deepseek-dashboard namespace; recall/list_keys functional |
+| 10. Code Quality | ✓ | File split complete (HTML/CSS/JS); 0 monolithic smell; no stale TODOs |
+| 11. Middle-Out Wiring | N/A | Single-file self-contained client app |
+
+**Actions:** Cooldown reverted again (7200s found at tick start — reversion #4). Re-set to 43200s (12h) via PUT and verified in response. Cooldown reversion persists across daemon restarts — fleet TOML values overwrite API-set cooldowns. At idle tick #7 with persistent reversion, this project is a candidate for Bane review (potential retirement or cooldown hardening in fleet config). No new tasks created.
