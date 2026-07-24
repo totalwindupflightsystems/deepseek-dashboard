@@ -12,6 +12,8 @@
 
 | ID | Task | Pri | Cpx | Deps | Commit | Model |
 |----|------|-----|-----|------|--------|-------|
+| BUG-001 | Fix double-upload dedup: normalize YYYYMMDD dates → YYYY-MM-DD | High | 1 | — | `280e3b8` | — |
+| BUG-002 | CSP: add unsafe-eval for sql.js WebAssembly (dashboard was broken) | High | 1 | — | `025426e` | — |
 
 ---
 
