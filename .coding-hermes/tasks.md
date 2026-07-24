@@ -4,6 +4,9 @@
 
 ## Active
 
+- [ ] **E2E-001 — E2E Testing Tick (self-improving loop)** 🔁 Recurring every 5-10 ticks
+  Spawn Luna (browser/screenshots) or Step 3.7 Flash (CLI/API). Deploy/build, Playwright, screenshots, endpoints, console. → e2e-output/tasks.md → inject into board. See foreman Step 1.5i. Proven: HEADING 10 bugs found.
+
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Reasoning | Fallback |
 |----|------|-----|-----|------|------|-------|-----------|----------|
 | NEVER-DONE | Run coding-hermes-never-done 12-point audit | Low | 2±0 | — | +audit, +code-quality | DS-V4-Flash | Low | DS-V4-Flash |

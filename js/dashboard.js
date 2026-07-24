@@ -1635,8 +1635,9 @@ document.getElementById('modalCancel').addEventListener('click', hideModal);
 document.getElementById('modalConfirm').addEventListener('click', () => {
   const val = document.getElementById('modalInput').value.trim();
   if (!val) return;
+  const cb = modalCallback;
   hideModal();
-  if (modalCallback) modalCallback(val);
+  if (cb) cb(val);
 });
 document.getElementById('modalInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('modalConfirm').click(); });
 
