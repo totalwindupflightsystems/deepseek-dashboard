@@ -417,6 +417,18 @@ async function _processSingleFile(file) {
 
   if (!amountRows.length && !costRows.length) throw new Error('No CSV data found in ZIP');
 
+  // Normalize date format: YYYYMMDD → YYYY-MM-DD (DeepSeek changed formats mid-2026)
+  for (const r of amountRows) {
+    if (r.utc_date && /^\d{8}$/.test(r.utc_date)) {
+      r.utc_date = r.utc_date.slice(0,4) + '-' + r.utc_date.slice(4,6) + '-' + r.utc_date.slice(6,8);
+    }
+  }
+  for (const r of costRows) {
+    if (r.utc_date && /^\d{8}$/.test(r.utc_date)) {
+      r.utc_date = r.utc_date.slice(0,4) + '-' + r.utc_date.slice(4,6) + '-' + r.utc_date.slice(6,8);
+    }
+  }
+
   // Detect date range
   const dates = new Set();
   amountRows.forEach(r => { if (r.utc_date) dates.add(r.utc_date); });
@@ -1918,6 +1930,25 @@ async function init() {
       const id = genId();
       db.run('INSERT INTO workspaces (id, name, created_at) VALUES (?, ?, ?)', [id, 'Default', new Date().toISOString()]);
       await saveDB();
+    }
+
+    // Migration: normalize YYYYMMDD dates → YYYY-MM-DD (DeepSeek changed formats mid-2026)
+    if (loaded) {
+      let migrated = 0;
+      const fixDates = (table) => {
+        const rows = db.exec(`SELECT rowid, utc_date FROM ${table} WHERE utc_date GLOB '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'`);
+        if (rows.length && rows[0].values.length) {
+          for (const r of rows[0].values) {
+            const d = r[1];
+            const normalized = d.slice(0,4) + '-' + d.slice(4,6) + '-' + d.slice(6,8);
+            db.run(`UPDATE ${table} SET utc_date = ? WHERE rowid = ?`, [normalized, r[0]]);
+            migrated++;
+          }
+        }
+      };
+      fixDates('token_usage');
+      fixDates('cost_daily');
+      if (migrated > 0) await saveDB();
     }
 
     refreshWsList();
