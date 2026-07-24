@@ -1,38 +1,36 @@
-# DeepSeek Dashboard — Task Board
+<!--
+  ⚠️  BOARD FORMAT — coding-hermes-model-router v1.3 (2026-07-24)
+  All tasks MUST use matrix format: | ID | Task | Pri | Cpx | Deps | Tags | Model | Reasoning | Fallback |
+  Before editing this file, load the skill: skill_view(name='coding-hermes-model-router')
+  Validate: python3 ~/.hermes/scripts/validate-board-format.py .coding-hermes/tasks.md
+  NEVER remove the matrix header row or NEVER-DONE / E2E-001 fixtures.
+-->
 
-> Foreman: deepseek-v4-flash @ deepseek-foreman | DuckBrain: deepseek-dashboard
+# DeepSeek Dashboard — Model Router Task Matrix
 
-## Active
+**Core purpose:** Real-time DeepSeek API usage dashboard — tracks token consumption, costs, model breakdown. Vanilla JS/HTML/CSS, 60 vitest tests, deployed to GitHub Pages.
 
-- [ ] **E2E-001 — E2E Testing Tick (self-improving loop)** 🔁 Recurring every 5-10 ticks
-  Spawn Luna (browser/screenshots) or Step 3.7 Flash (CLI/API). Deploy/build, Playwright, screenshots, endpoints, console. → e2e-output/tasks.md → inject into board. See foreman Step 1.5i. Proven: HEADING 10 bugs found.
+## Active Tasks
+
+- [ ] **E2E-001 — E2E Testing Tick (self-improving loop)** 🔁 Every 5-10 ticks
+  Spawn Luna (browser/screenshots) or Step 3.7 Flash (CLI/API). Deploy/build, Playwright, screenshots, endpoints, console. → e2e-output/tasks.md → inject into board.
 
 | ID | Task | Pri | Cpx | Deps | Tags | Model | Reasoning | Fallback |
 |----|------|-----|-----|------|------|-------|-----------|----------|
-| NEVER-DONE | Run coding-hermes-never-done 12-point audit | Low | 2±0 | — | +audit, +code-quality | DS-V4-Flash | Low | DS-V4-Flash |
+| NEVER-DONE | 12-point audit sweep | Low | 2 | — | +audit, +code-quality, ++testing | DeepSeek V4 Flash | Audit runs every tick; all checks historically green | DeepSeek V4 Flash |
+
+**Assumptions:** Vanilla JS project — no framework, no build step. npm audit: 0 vulns. 0 TODOs/FIXMEs. 1,965 JS + 321 CSS + 225 HTML. Deployed to GitHub Pages.
+
+**Routing Notes:** Board has 0 real tasks — project stable and maintained. 60/60 tests pass. Scheduler cooldown 43200s (12h). All 8 health checks pass every tick. Bane committed 3 bug fixes this tick cycle.
+
+**Execution Order:** NEVER-DONE only.
+
+**Escalation Conditions:** N/A — Bane actively maintaining (3 bug fixes committed on 2026-07-24).
 
 ## Completed
 
-| ID | Task | Pri | Cpx | Deps | Commit | Model |
-|----|------|-----|-----|------|--------|-------|
-| BUG-001 | Fix double-upload dedup: normalize YYYYMMDD dates → YYYY-MM-DD | High | 1 | — | `280e3b8` | — |
-| BUG-002 | CSP: add unsafe-eval for sql.js WebAssembly (dashboard was broken) | High | 1 | — | `025426e` | — |
-
----
-
-## Idle Tick Tracking
-
-| **Idle tick #18 (2026-07-24 05:19 UTC)** — Board has only NEVER-DONE. Concise health check ran.
-|
-||| Check | Result | Details |
-|||-------|--------|---------|
-||| 1. Tests | ✓ | 60/60 vitest pass in 1.05s (6 test files, all green) |
-||| 2. Security | ✓ | npm audit: 0 vulnerabilities; 0 TODOs/FIXMEs/HACKs in source |
-||| 3. Deploy | ✓ | GH Pages HTTPS 200 — site live and serving |
-||| 4. Outdated Dependencies | ✓ | npm outdated: empty |
-||| 5. Code Quality | ✓ | 2,691 JS lines + 321 CSS + 225 HTML (9 source files, 6 test files) |
-||| 6. Working Tree | ✓ | Clean — no uncommitted changes |
-||| 7. Hilo Graph | ✓ | 8 files, 10 edges; flat JS project pattern |
-||| 8. DuckBrain Sync | ✓ | Namespace populated, write succeeded on this tick |
-||
-||**Actions:** All 8 checks pass. Cooldown: **43200s (12h)** — scheduler auto-managed (reverted from 86400s set in tick #17). **18 idle ticks total.** This project is complete and stable. The only ongoing expenditure is PAYG tokens on idle ticks. Escalating to Bane for a decision. Options: (1) disable in scheduler, (2) archive/remove project, (3) assign new work.
+| ID | Task | Pri | Cpx | Commit | Model |
+|----|------|-----|-----|--------|-------|
+| BUG-001 | Fix double-upload dedup: normalize YYYYMMDD dates → YYYY-MM-DD | High | 1 | 280e3b8 | — |
+| BUG-002 | CSP: add unsafe-eval for sql.js WebAssembly (dashboard was broken) | High | 1 | 025426e | — |
+| BUG-003 | Fix workspace creation: hideModal() cleared modalCallback before use | High | 1 | 9a04bdc | — |
