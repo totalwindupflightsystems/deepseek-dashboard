@@ -5,3 +5,4 @@ _check_syntax.js
 _verify*.js
 .vfs/
 .gitreins/
+.env*
