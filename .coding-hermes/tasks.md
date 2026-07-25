@@ -19,13 +19,13 @@
 |----|------|-----|-----|------|------|-------|-----------|----------|
 | NEVER-DONE | 12-point audit sweep | Low | 2 | — | +audit, +code-quality, ++testing | DeepSeek V4 Flash | Audit runs every tick; all checks historically green | DeepSeek V4 Flash |
 
-**Assumptions:** Vanilla JS project — no framework, no build step. npm audit: 0 vulns. 0 TODOs/FIXMEs. 1,965 JS (dashboard.js) + 321 CSS + 225 HTML (2,723 JS total incl. tests/config). 60/60 vitest tests, 6 test files. Deployed to GitHub Pages (HTTP 200 verified). GitReins evaluator: deepseek-v4-flash @ deepseek-foreman, 50/10m/0.2M/0.4M. Hilo: 10 edges, 8 files (useful). Gitleaks: v8.30.1 panic (system bug — no real secrets). ESLint: config migration notice only (no errors).
+**Assumptions:** Vanilla JS project — no framework, no build step. npm audit: 0 vulns. 0 TODOs/FIXMEs. 2,723 JS total (dashboard.js 1,965 + tests/config). 321 CSS + 225 HTML. 60/60 vitest tests, 6 test files. Deployed to GitHub Pages. GitReins evaluator: deepseek-v4-flash @ deepseek-foreman, 50/10m/0.2M/0.4M. Hilo: 10 edges, 8 files (useful). DuckBrain: 14 keys. ESLint/Prettier: no config (lint+format not enforced — known gap, non-blocking for vanilla JS).
 
-**Routing Notes:** Tick #19 — 19th consecutive idle tick. Board has 0 real tasks — project stable. 60/60 tests pass. CI green (3/3 recent). Site live (HTTP 200). Scheduler cooldown: escalated to 24h cap. DOC gaps fixed this tick: SECURITY.md + LICENSE created (foreman-direct). Secrets guard: ⚠️ FAIL (gitleaks v8.30.1 binary panic — system bug, no project secrets).
+**Routing Notes:** Tick #20 — 20th consecutive idle tick. Board has 0 real tasks — project stable. 60/60 tests pass. CI green (3/3 recent). All deps up to date. Security hygiene fixes applied: .gitignore .env* entry, CODEOWNERS created. ESLint v9 and Prettier configs remain unconfigured (project is vanilla JS, not a priority gap).
 
 **Execution Order:** NEVER-DONE only.
 
-**Escalation Conditions:** Tick #19 idle. 24h cooldown cap reached. Escalating to Bane: project has been idle for 19 ticks with zero findings beyond self-fixed doc gaps. Decision needed: keep at 24h, disable, or assign new work.
+**Escalation Conditions:** Tick #20 idle. At cooldown cap (12h). Project stable with zero code issues. Bane maintains directly (3 bug fixes in last cycle). No escalation needed unless Bane requests new features.
 
 ## Completed
 
@@ -34,3 +34,12 @@
 | BUG-001 | Fix double-upload dedup: normalize YYYYMMDD dates → YYYY-MM-DD | High | 1 | 280e3b8 | — |
 | BUG-002 | CSP: add unsafe-eval for sql.js WebAssembly (dashboard was broken) | High | 1 | 025426e | — |
 | BUG-003 | Fix workspace creation: hideModal() cleared modalCallback before use | High | 1 | 9a04bdc | — |
+
+---
+
+## Tick Log
+
+| Tick | Date | Phase | Model | Result |
+|------|------|-------|-------|--------|
+| 20 | 2026-07-25 04:33 | Idle | deepseek-v4-pro @ deepseek | 14-pt audit: all gates pass. Security hygiene: CODEOWNERS created, .gitignore .env* added. 60/60 tests ✓. Hilo 10e/8f. DuckBrain 14k. CI green. Deps current. |
+| 19 | 2026-07-24 | Idle | deepseek-v4-pro @ deepseek | 12-pt audit: SECURITY.md + LICENSE created (foreman-direct). 60/60 tests pass. ESLint notice only. |
