@@ -4,3 +4,4 @@ node_modules/
 _check_syntax.js
 _verify*.js
 .vfs/
+.gitreins/
