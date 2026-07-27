@@ -1,0 +1,10 @@
+{"from":"vitest.config.js","to":"pkg:vitest/config","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/detectAnomalies.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/groupDays.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/setup.js","to":"pkg:jsdom","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/setup.js","to":"pkg:fs","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/setup.js","to":"pkg:path","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/parseCSV.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/getISOWeekStart.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/pricing.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/parseCSV-edge.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
