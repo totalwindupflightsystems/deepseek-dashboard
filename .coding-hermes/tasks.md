@@ -19,9 +19,9 @@
 |----|------|-----|-----|------|------|-------|-----------|----------|
 | NEVER-DONE | 12-point audit sweep | Low | 2 | — | +audit, +code-quality, ++testing | DeepSeek V4 Flash | Audit runs every tick; all checks historically green | DeepSeek V4 Flash |
 
-**Assumptions:** Vanilla JS project — no framework, no build step. npm audit: 0 vulns. 0 TODOs/FIXMEs. 2,723 JS total (dashboard.js 1,965 + tests/config). 321 CSS + 225 HTML. 60/60 vitest tests, 6 test files. CI green (5/5 recent runs — test + html-validate + deploy-check). No GitHub Pages deployment configured (repo at totalwindupflightsystems/deepseek-dashboard). GitReins evaluator: deepseek-v4-flash @ deepseek-foreman, 50/10m/0.2M/0.4M. Hilo: 10 edges, 8 files (useful). DuckBrain: 2 keys (repopulated tick #21 — was empty). ESLint/Prettier: no config (lint+format not enforced — known gap, non-blocking for vanilla JS).
+**Assumptions:** Vanilla JS project — no framework, no build step. npm audit: 0 vulns. 0 TODOs/FIXMEs. 2,511 total lines (dashboard.js 1,965 + CSS 321 + HTML 225). 60/60 vitest tests, 6 test files, 1.05s. CI green (5/5 recent runs — test + html-validate + deploy-check). GitHub Pages live at totalwindupflightsystems.github.io/deepseek-dashboard. GitReins evaluator: deepseek-v4-flash @ deepseek-foreman, 50/10m/0.2M/0.4M, 0 open tasks. Hilo: 10 edges, 8 files (useful), edges.jsonl now tracked in git (fix applied this tick). DuckBrain: 1 key (state+audit-log written this tick, recall confirmed). ESLint/Prettier: no config (lint+format not enforced — known gap, non-blocking for vanilla JS).
 
-**Routing Notes:** Tick #23 — 23rd consecutive idle tick. Board has 0 real tasks — project stable. 60/60 tests pass (1.66s). CI green (5/5). All deps up to date (npm audit: 0 vulns). DuckBrain writes succeeded (state + audit-log/tick-23). DuckBrain MCP connection unstable (known stdio pipe issue — intermittent recall failure after successful writes). No code changes, no gaps found.
+**Routing Notes:** Tick #24 — 24th consecutive idle tick. Board has 0 real tasks — project stable. 60/60 tests pass (1.05s). CI green (5/5). All deps up to date (npm audit: 0 vulns). DuckBrain writes succeeded AND recall confirmed (ccac4856, d592a089). Hilo .gitignore fix applied: edges.jsonl now tracked in git (was blocked by blanket .vfs/ ignore). DuckBrain stdio pipe issue still intermittent but writes succeeded this tick. No code changes beyond config fix.
 
 **Execution Order:** NEVER-DONE only.
 
@@ -41,6 +41,7 @@
 
 | Tick | Date | Phase | Model | Result |
 |------|------|-------|-------|--------|
-|| 23 | 2026-07-26 20:21 | Idle | deepseek-v4-flash @ deepseek-foreman | 12-pt audit: all gates pass. 60/60 tests ✓ (1.66s). CI green (5/5 recent). npm audit 0 vulns. Hilo 10e/8f (warm). 2,723 JS + 546 HTML/CSS. Git clean. DuckBrain writes succeeded (state + audit-log/tick-23). MCP recall intermittent (known issue). 23rd consecutive idle tick — project stable, no gaps. |
+| 24 | 2026-07-27 08:23 | Idle+Fix | deepseek-v4-pro @ deepseek | 14-pt audit: all gates pass (60/60 tests ✓, 0 vulns, CI green, Hilo 10e/8f, GitHub Pages live). Fix applied: Hilo .gitignore narrowed from blanket `.vfs/` to cache files only — edges.jsonl now tracked in git (commit 423885b). DuckBrain writes succeeded + recall confirmed. Known gap: ESLint/Prettier not configured (non-blocking for vanilla JS). |
+| 23 | 2026-07-26 20:21 | Idle | deepseek-v4-flash @ deepseek-foreman | 12-pt audit: all gates pass. 60/60 tests ✓ (1.66s). CI green (5/5 recent). npm audit 0 vulns. Hilo 10e/8f (warm). 2,723 JS + 546 HTML/CSS. Git clean. DuckBrain writes succeeded (state + audit-log/tick-23). MCP recall intermittent (known issue). 23rd consecutive idle tick — project stable, no gaps. |
 | 20 | 2026-07-25 04:33 | Idle | deepseek-v4-pro @ deepseek | 14-pt audit: all gates pass. Security hygiene: CODEOWNERS created, .gitignore .env* added. 60/60 tests ✓. Hilo 10e/8f. DuckBrain 14k. CI green. Deps current. |
 | 19 | 2026-07-24 | Idle | deepseek-v4-pro @ deepseek | 12-pt audit: SECURITY.md + LICENSE created (foreman-direct). 60/60 tests pass. ESLint notice only. |
