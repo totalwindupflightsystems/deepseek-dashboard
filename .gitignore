@@ -6,3 +6,7 @@ _verify*.js
 .vfs/
 .gitreins/
 .env*
+
+# DuckDB board cache (rebuildable from Parquet)
+.coding-hermes/board/board.db
+.coding-hermes/board/board.db.wal
