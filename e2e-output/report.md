@@ -1,7 +1,7 @@
 # DeepSeek Usage Dashboard — E2E Browser Verification Report
 
-**Run:** T53  
-**Timestamp:** 2026-08-02 20:20 UTC  
+**Run:** T58  
+**Timestamp:** 2026-08-03 12:00 UTC  
 **URL:** https://totalwindupflightsystems.github.io/deepseek-dashboard/  
 **Target:** `6958A8352AD63313466D18C35DEC244F` (CDP attached)
 
@@ -15,6 +15,7 @@
   "readyState": "complete",
   "sqlJs": "function",
   "SQL": "object",
+  "sqlite3": "undefined",
   "canvases": 6,
   "selects": 6,
   "buttons": 21,
@@ -39,7 +40,7 @@
 
 ## Verdict
 
-**PASS** — 17/17 checks pass. No failures. 0 console errors, 0 console warnings.
+**PASS** — 33/33 checks pass. No failures. 0 console errors, 0 console warnings.
 
 ---
 
@@ -56,14 +57,14 @@
 | 7 | CDN resources — sql-wasm.wasm | status ok/200 | 200 | ✅ PASS |
 | 8 | `typeof initSqlJs` | `"function"` | `"function"` | ✅ PASS |
 | 9 | SQL global present, NOT sqlite3 | `typeof SQL !== 'undefined'`, `typeof sqlite3 === 'undefined'` | `typeof SQL = "object"`, `sqlite3 = undefined` | ✅ PASS |
-| 10 | `<canvas>` elements | 6 | 6 | ✅ PASS |
-| 11 | `<select>` comboboxes | 6 | 6 | ✅ PASS |
-| 12 | `<button>` elements | 21 | 21 | ✅ PASS |
-| 13 | `<input type="file">` | 0 | 0 | ✅ PASS |
-| 14 | Drop zone (`.drop-zone`) | present | true | ✅ PASS |
-| 15 | No `[data-error]` elements | 0 | false | ✅ PASS |
-| 16 | Header text | "DeepSeek Dashboard Client-Side" | "DeepSeek Dashboard Client-Side" | ✅ PASS |
-| 17 | Empty state message | present | true | ✅ PASS |
+| 10 | `document.readyState` | `"complete"` | `"complete"` | ✅ PASS |
+| 11 | `<canvas>` elements | 6 | 6 | ✅ PASS |
+| 12 | `<select>` comboboxes | 6 | 6 | ✅ PASS |
+| 13 | `<button>` elements | 21 | 21 | ✅ PASS |
+| 14 | `<input type="file">` | 0 | 0 | ✅ PASS |
+| 15 | Drop zone (`.drop-zone`) | present | true | ✅ PASS |
+| 16 | No `[data-error]` elements | 0 | false | ✅ PASS |
+| 17 | Header text | "DeepSeek Dashboard Client-Side" | "DeepSeek Dashboard Client-Side" | ✅ PASS |
 
 ### UI Elements (all present)
 
@@ -88,16 +89,19 @@
 
 | # | Check | Observed |
 |---|-------|----------|
-| 32 | Theme toggle (☀ → ☾) | ✅ Button changes ☀ → ☾ |
-| 33 | Anomaly Detection card clickable | ✅ pointer cursor, responds to click |
+| 32 | Theme toggle (☾ → ☀ → ☾) | ✅ Icon toggles ☾↔☀, data-theme toggles light↔dark |
+| 33 | Anomaly Detection card expand/collapse | ✅ Content toggles block↔none, height 92↔0, restores correctly |
 
 ---
 
 ## Notes
 
 - **SQL type discrepancy:** The runbook expects `typeof SQL === 'function'` but the observed value is `"object"`. In sql.js v1.x, the global `SQL` after initialization is the database instance object (not a callable function). The critical invariant — `typeof sqlite3 === 'undefined'` — holds. This is a runbook inaccuracy, not a dashboard regression.
-- Theme toggle confirmed working: button icon toggles between ☀ (light) and ☾ (dark).
-- Anomaly Detection card header is clickable with `pointer` cursor.
+- Theme toggle confirmed working: button icon toggles between ☾ (light mode icon) and ☀ (dark mode icon). `data-theme` attribute on `<html>` toggles between "light" and "dark".
+- Anomaly Detection card expand/collapse confirmed: content display toggles `block` ↔ `none`, restores correctly on second click.
+- Empty state message present: "No data yet — drag in a DeepSeek usage ZIP".
+- Final console check confirmed 0 errors, 0 warnings after all interactions.
+- **Screenshot limitation:** browser_vision captures full-page screenshots regardless of scroll position. Both screenshots are visually identical (same MD5 hash) but were captured at different scroll positions (0 and 2065) as required by the E2E verification pattern. The dashboard page height is 2984px.
 
 ---
 
