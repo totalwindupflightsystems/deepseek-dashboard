@@ -7,7 +7,7 @@ Thanks for contributing! This is a single-file HTML dashboard — no build syste
 1. Open `index.html` directly in a browser (`file://` protocol works, no server needed)
 2. Drop a DeepSeek usage CSV export onto the page
 3. Exercise the feature you're changing: switch workspaces, toggle charts, change granularity, test rate limit panel, trigger anomaly detection
-4. For JS logic tests: `npm test` (Vitest, 55 tests)
+4. For JS logic tests: `npm test` (Vitest, 60 tests)
 
 ## How the Code is Organized
 
@@ -25,10 +25,8 @@ Dependencies are loaded from CDN in `<head>` and at the end of `<body>`:
 | Library | CDN | Purpose |
 |---------|-----|---------|
 | Chart.js | jsDelivr | All chart rendering |
-| Chart.js Zoom | jsDelivr | Zoom/pan on charts |
 | sql.js | jsDelivr | SQL-powered persistence via IndexedDB |
 | JSZip | cdnjs | DeepSeek ZIP export extraction |
-| FileSaver.js | cdnjs | CSV export download |
 
 To update:
 1. Find the latest version on [jsDelivr](https://www.jsdelivr.com/) or [cdnjs](https://cdnjs.com/)

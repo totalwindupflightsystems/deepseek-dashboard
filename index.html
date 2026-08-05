@@ -6,9 +6,9 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://cdn.jsdelivr.net; frame-src 'none'; object-src 'none'; base-uri 'self'; worker-src blob:;">
 <title>DeepSeek Usage Dashboard</title>
 <script>(function(){try{var t=localStorage.getItem('ds-dash-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sql.js@1.14.1/dist/sql-wasm.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.14.1/dist/sql-wasm.js" integrity="sha384-4BFYB3flXPr2Z7nY58MEovqPlVDyWWBDlHTclbOjtPii317X+bu9vsbPUCkb//6+" crossorigin="anonymous"></script>
 <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
@@ -48,7 +48,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0L8 8m4-4l4 4M4 20h16"/></svg>
       <div class="drop-title">Drop DeepSeek usage ZIP here</div>
       <div class="drop-sub">or click to select &mdash; manages diffs automatically</div>
-      <div class="drop-help">Expected format: a DeepSeek API usage ZIP export containing daily JSON files (e.g. <code>YYYY-MM-DD.json</code> with fields <code>model</code>, <code>input_cache_hit_tokens</code>, <code>input_cache_miss_tokens</code>, <code>output_tokens</code>, <code>request_count</code>, <code>price</code>, and <code>api_key_name</code>).</div>
+      <div class="drop-help">Expected format: a DeepSeek usage ZIP export containing CSV files (e.g. <code>amount-YYYY-M.csv</code> / <code>cost-YYYY-M.csv</code> with columns <code>utc_date</code>, <code>model</code>, <code>type</code>, <code>price</code>, <code>amount</code>).</div>
     </div>
 
     <!-- Upload History -->

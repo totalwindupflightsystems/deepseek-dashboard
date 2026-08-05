@@ -12,7 +12,7 @@ If you need help with the DeepSeek Dashboard, please:
 ## FAQ
 
 **Q: The dashboard shows no data after uploading a CSV.**
-Make sure your CSV has a "Date" column with dates in YYYY-MM-DD format.
+Make sure you upload the `.zip` export from DeepSeek (direct CSV upload is rejected). The CSVs inside use a `utc_date` column with dates in YYYY-MM-DD format — not a "Date" column.
 
 **Q: Charts don't render.**
 This dashboard uses Chart.js loaded from CDN. Check your network connection and ad-blocker settings.
