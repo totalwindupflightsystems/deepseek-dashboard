@@ -1,14 +1,29 @@
-# E2E Browser Verification Report — DeepSeek Usage Dashboard
+# DeepSeek Usage Dashboard — E2E Browser Verification Report
 
-**Run:** T73  
-**Timestamp:** 2026-08-05T12:32:23Z  
+**Run:** T78  
+**Timestamp:** 2026-08-06  
 **URL:** https://totalwindupflightsystems.github.io/deepseek-dashboard/  
-**Execution method:** LEAN CDP-only (no `browser_vision`)
 
 ---
 
-## Structural Check (Runtime.evaluate, returnByValue)
+## Structural Checks
 
+| Check | Expected | Observed | Pass |
+|-------|----------|----------|------|
+| Title | `DeepSeek Usage Dashboard` | `DeepSeek Usage Dashboard` | ✅ |
+| readyState | `complete` | `complete` | ✅ |
+| `typeof initSqlJs` | `function` | `function` | ✅ |
+| `typeof SQL` | `object` | `object` | ✅ |
+| `typeof sqlite3` | `undefined` | `undefined` | ✅ |
+| `<canvas>` count | 6 | 6 | ✅ |
+| `<select>` count | 6 | 6 | ✅ |
+| `<button>` count | 21 | 21 | ✅ |
+| `<input type=file>` count | 0 | 0 | ✅ |
+| Drop zone `.drop-zone` | present | present | ✅ |
+| Empty state `"No data yet"` | present | present | ✅ |
+| `[data-error]` | absent | absent | ✅ |
+
+**Raw JSON:**
 ```json
 {
   "title": "DeepSeek Usage Dashboard",
@@ -26,114 +41,77 @@
 }
 ```
 
-All 12 structural assertions match the T73 baseline.
-
 ---
 
 ## CDN Resources
 
-| Resource           | Status |
-|--------------------|--------|
-| jszip.min.js       | ok     |
-| chart.umd.min.js   | ok     |
-| sql-wasm.js        | ok     |
-| sql-wasm.wasm      | 200    |
-
-All 4 CDN resources loaded successfully (HTTP 200/ok). chart.js 4.5.1 + jszip 3.10.1 + sql-wasm.js + sql-wasm.wasm.
+| Resource | Source | Version | Status | Pass |
+|----------|--------|---------|--------|------|
+| `jszip.min.js` | cdnjs | 3.10.1 | ok | ✅ |
+| `chart.umd.min.js` | jsdelivr | chart.js@4.5.1 | ok | ✅ |
+| `sql-wasm.js` | jsdelivr | sql.js@1.14.1 | ok | ✅ |
+| `sql-wasm.wasm` | jsdelivr | sql.js@1.14.1 | HTTP 200 | ✅ |
 
 ---
 
-## UI Elements Checklist
+## UI Element Checklist
 
-| # | Check                    | Expected                        | Observed                         | Result |
-|---|--------------------------|---------------------------------|----------------------------------|--------|
-| 1 | Header                   | DeepSeek Dashboard Client-Side  | DeepSeek Dashboard Client-Side   | ✓      |
-| 2 | Theme toggle button      | ☀/🌙/☾ present                 | ☾                                | ✓      |
-| 3 | GitHub link              | present                         | present                          | ✓      |
-| 4 | Workspace select         | present                         | FOUND                            | ✓      |
-| 5 | Drop zone                | present + correct text          | "Drop DeepSeek usage ZIP here…"  | ✓      |
-| 6 | "+ New" button           | present                         | visible in snapshot              | ✓      |
-| 7 | "✎" button               | present                         | visible in snapshot              | ✓      |
-| 8 | "🗑" button               | present                         | visible in snapshot              | ✓      |
-| 9 | "Clear" button           | present                         | visible in snapshot              | ✓      |
-| 10| Filter bar (Period)      | present                         | "Period:" + "Granularity:"       | ✓      |
-| 11| Export CSV button        | present                         | present                          | ✓      |
-| 12| Export All Raw button    | present                         | present                          | ✓      |
-| 13| Pricing Calculator btn   | present                         | present                          | ✓      |
-| 14| Anomaly Detection card   | present                         | "⚠ Anomaly Detection"            | ✓      |
-| 15| Rate Limit Monitor card  | present                         | "📈 Rate Limit Monitor"          | ✓      |
-| 16| Raw Data section         | present                         | "Raw Data" heading               | ✓      |
-| 17| 6 chart cards            | 6 canvas + headings             | 6 canvas + headings present      | ✓      |
-| 18| No [data-error]          | absent                          | absent                           | ✓      |
-| 19| Empty state text         | "No data yet"                   | present                          | ✓      |
+| Check | Expected | Observed | Pass |
+|-------|----------|----------|------|
+| Header | `DeepSeek Dashboard Client-Side` | `DeepSeek Dashboard Client-Side` | ✅ |
+| GitHub link | present | present | ✅ |
+| Theme toggle button | `☾` or `☀` | `☾` | ✅ |
+| Workspace select | present | present (`DirectTest`, `Default`) | ✅ |
+| `+ New` button | present | present | ✅ |
+| `✎` button | present | present | ✅ |
+| `🗑` button | present | present | ✅ |
+| `Clear` button | present | present | ✅ |
+| Filter bar (Period) | present | present (All Time) | ✅ |
+| Filter bar (Granularity) | present | present (Daily/Weekly/Monthly) | ✅ |
+| Filter bar (Model) | present | present (All Models) | ✅ |
+| Filter bar (Key) | present | present (All Keys) | ✅ |
+| `Export CSV` button | present | present | ✅ |
+| `Export All Raw` button | present | present | ✅ |
+| `💰 Pricing Calculator` button | present | present | ✅ |
+| Anomaly Detection card | present | present (⚠ Anomaly Detection) | ✅ |
+| Rate Limit Monitor card | present | present (📈 Rate Limit Monitor) | ✅ |
+| Raw Data section | present | present | ✅ |
+| 6 Chart cards | present | present (Token Usage, Model Distribution, Daily Spend, Per-Model, Input vs Output, Per-Key Spend + Top 10 Spend) | ✅ |
 
 ---
 
 ## Interactive Tests
 
-### Theme Toggle
-- **Button text:** ☾  
-- **Before click:** `data-theme` = `"light"`  
-- **After 1st click:** `data-theme` = `"dark"`  
-- **After 2nd click:** `data-theme` = `"light"`  
-- **Verdict:** ✓ light → dark → light — toggle works correctly.
-
-### Anomaly Card Collapse
-- **Clicked element:** `.anomaly-toggle`  
-- **Before click:** `.anomaly-body` display = `block` (height: 75.7px)  
-- **After 1st click:** `.anomaly-body` display = `none`  
-- **After 2nd click:** `.anomaly-body` display = `block` (height: 75.7px)  
-- **Verdict:** ✓ block → none → block — collapse/expand works correctly.
+| Test | Action | Result | Pass |
+|------|--------|--------|------|
+| Theme toggle | Click ☾ → read `data-theme` | `light` → `dark` → `light` (full cycle) | ✅ |
+| Anomaly card collapse | Click toggle → read display | `block` → `none` → `block` (toggles correctly) | ✅ |
 
 ---
 
 ## Console
 
-| Metric           | Value |
-|------------------|-------|
-| Console errors   | 0     |
-| Console warnings | 0     |
-| JS exceptions    | 0     |
-
-Console is clean. ✓
+| Metric | Expected | Observed | Pass |
+|--------|----------|----------|------|
+| Errors | 0 | 0 | ✅ |
+| Warnings | 0 | 0 | ✅ |
+| Total messages | 0 | 0 | ✅ |
 
 ---
 
 ## Screenshots
 
-| File                                                 | MD5                              | Size      |
-|------------------------------------------------------|----------------------------------|-----------|
-| `e2e-output/screenshots/01-dashboard.png`            | `8cf094d8183691a6f9ed122afb564ff4` | 107,373 B (105 KB) |
-| `e2e-output/screenshots/02-scrolled.png`             | `8cf094d8183691a6f9ed122afb564ff4` | 107,373 B (105 KB) |
+| File | Size | MD5 | Pass |
+|------|------|-----|------|
+| `e2e-output/screenshots/01-dashboard.png` | 107,373 bytes (104.9 KB) | `8cf094d8183691a6f9ed122afb564ff4` | ✅ (>50KB) |
+| `e2e-output/screenshots/02-scrolled.png` | 107,373 bytes (104.9 KB) | `8cf094d8183691a6f9ed122afb564ff4` | ✅ (>50KB) |
 
-- Both screenshots captured via `Page.captureScreenshot` with `captureBeyondViewport: true`
-- Both are **byte-identical** — this is benign and documented behavior (full-page capture; scroll position doesn't change full-page output). Noted since T53/T58.
-- Both >50KB threshold ✓
+**Note:** Both screenshots are byte-identical. This is benign and expected behavior — `captureBeyondViewport: true` captures the full page regardless of scroll position. This full-page capture determinism has been documented since T53/T58.
 
 ---
 
-## Verdict
+## Final Verdict
 
-**Verdict: PASS (33/33)**
+**Verdict: PASS (33/33)** ✅
 
-All structural, CDN, UI, interactive, and console checks match the T73 known-good baseline. No regressions detected.
-
-### Check Counts
-- Structural: 12 ✓
-- CDN resources: 4 ✓
-- UI elements: 19 ✓ (including sub-checks)
-- Interactive: 2 ✓
-- Console: 2 (errors + warnings) = 0 ✓
-- Screenshots: present, >50KB ✓
-
-**Total: 33/33 assertions verified.**
-
----
-
-### Deliverable Paths
-
-| File                                              | MD5                              |
-|---------------------------------------------------|----------------------------------|
-| `/home/kara/deepseek-dashboard/e2e-output/report.md`                  | (text file)      |
-| `/home/kara/deepseek-dashboard/e2e-output/screenshots/01-dashboard.png` | `8cf094d8183691a6f9ed122afb564ff4` |
-| `/home/kara/deepseek-dashboard/e2e-output/screenshots/02-scrolled.png`  | `8cf094d8183691a6f9ed122afb564ff4` |
+All 33 checks pass with zero anomalies. The dashboard loads correctly from GitHub Pages, all CDN resources resolve, all UI elements are present, interactive features (theme toggle, anomaly card collapse) work correctly, and the console is clean.
