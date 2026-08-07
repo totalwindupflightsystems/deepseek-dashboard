@@ -10,3 +10,6 @@ _verify*.js
 # DuckDB board cache (rebuildable from Parquet)
 .coding-hermes/board/board.db
 .coding-hermes/board/board.db.wal
+
+# Board parquet mirrors retired (JSONL is the git store since Tick 81)
+.coding-hermes/board/*.parquet
