@@ -65,6 +65,8 @@ Just open the link — no install, no signup, nothing. Your data stays in your b
 
 **Multi-account?** Create multiple workspaces and switch between them. Data is isolated per workspace.
 
+**Something not working?** Check [SUPPORT.md](SUPPORT.md) — upload format requirements (ZIP only, `utc_date` columns), troubleshooting, and FAQ.
+
 ## How to Verify the Code
 
 It's three files. Open `index.html`, `js/dashboard.js`, and `css/dashboard.css` in any text editor. Read them. No obfuscation, no minification, no hidden requests. The application is ~2,480 lines of vanilla HTML/CSS/JS with a 680-line Vitest test suite.
@@ -105,6 +107,10 @@ The dashboard was developed and tested against a real June 2026 usage export. Th
 
 - Works with DeepSeek's current export format (June 2026). If they change column names, fuzzy matching handles most cases, but radical format changes may need a code update.
 - Very large exports (6+ months of heavy usage) may cause browser memory pressure. The dashboard processes everything in-memory.
+
+## Support
+
+Questions, FAQs, and troubleshooting: [SUPPORT.md](SUPPORT.md)
 
 ## License
 
