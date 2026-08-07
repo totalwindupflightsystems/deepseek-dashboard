@@ -13,3 +13,5 @@ _verify*.js
 
 # Board parquet mirrors retired (JSONL is the git store since Tick 81)
 .coding-hermes/board/*.parquet
+
+.coding-hermes/board/*.duckdb
