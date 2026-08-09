@@ -567,15 +567,59 @@ async function handleMultipleUpload(files) {
 }
 
 // -- Data Querying --
+
+// Returns the dataset's max utc_date (YYYY-MM-DD) for the active workspace, or
+// null when the db is unavailable / the workspace has no rows.  token_usage is
+// queried first; cost_daily is the fallback.  Used to anchor relative period
+// windows (7d/30d) to the DATA instead of the wall clock so a June export viewed
+// in August still shows the last 7 days of June.
+function getDatasetMaxDate() {
+  if (typeof db === 'undefined' || !db || typeof db.exec !== 'function') return null;
+  try {
+    let r = db.exec('SELECT MAX(utc_date) FROM token_usage WHERE workspace_id = ?', [activeWsId]);
+    if (r.length && r[0].values.length && r[0].values[0][0]) return r[0].values[0][0];
+    r = db.exec('SELECT MAX(utc_date) FROM cost_daily WHERE workspace_id = ?', [activeWsId]);
+    if (r.length && r[0].values.length && r[0].values[0][0]) return r[0].values[0][0];
+  } catch (_) { /* ignore — fall back to wall clock */ }
+  return null;
+}
+
+// Returns true when the active workspace has ANY rows in token_usage or
+// cost_daily.  Guards against an unavailable db so it never throws in the
+// mocked test harness.
+function workspaceHasData() {
+  if (typeof db === 'undefined' || !db || typeof db.exec !== 'function') return false;
+  try {
+    let r = db.exec('SELECT 1 FROM token_usage WHERE workspace_id = ? LIMIT 1', [activeWsId]);
+    if (r.length && r[0].values.length) return true;
+    r = db.exec('SELECT 1 FROM cost_daily WHERE workspace_id = ? LIMIT 1', [activeWsId]);
+    if (r.length && r[0].values.length) return true;
+  } catch (_) { /* ignore */ }
+  return false;
+}
+
+// Pure helper: pick the empty-state message based on whether the workspace has
+// any data at all.  When the workspace HAS data but the selected period matches
+// nothing, the message guides the user to broaden the filter instead of
+// re-uploading data they already have.
+function emptyStateMessage(hasData, period) {
+  if (hasData && period && period !== 'all') {
+    return 'No data in the selected period — try All Time or a month';
+  }
+  return 'No data yet — drag in a DeepSeek usage ZIP';
+}
+
 function queryPeriod(period) {
   if (period === 'all') return ['2000-01-01', '2099-12-31'];
   if (period === '7d') {
-    const d = new Date(); d.setDate(d.getDate()-7);
-    return [d.toISOString().slice(0,10), new Date().toISOString().slice(0,10)];
+    const end = getDatasetMaxDate() || new Date().toISOString().slice(0,10);
+    const d = new Date(end); d.setUTCDate(d.getUTCDate() - 6);
+    return [d.toISOString().slice(0,10), end];
   }
   if (period === '30d') {
-    const d = new Date(); d.setDate(d.getDate()-30);
-    return [d.toISOString().slice(0,10), new Date().toISOString().slice(0,10)];
+    const end = getDatasetMaxDate() || new Date().toISOString().slice(0,10);
+    const d = new Date(end); d.setUTCDate(d.getUTCDate() - 29);
+    return [d.toISOString().slice(0,10), end];
   }
   if (period.startsWith('month-')) {
     const [y,m] = period.replace('month-','').split('-');
@@ -742,7 +786,7 @@ async function refreshAll() {
   const chartDays = groupDays(days, granularity);
   _groupedDays = chartDays;
   if (!days.length) {
-    document.getElementById('kpiGrid').innerHTML = '<div style="color:var(--text-dim);padding:20px">No data yet — drag in a DeepSeek usage ZIP</div>';
+    document.getElementById('kpiGrid').innerHTML = '<div style="color:var(--text-dim);padding:20px">' + emptyStateMessage(workspaceHasData(), period) + '</div>';
     ['tokens','spend','modelPie','ratio','key','modelDist'].forEach(k => destroyChart(k));
     document.getElementById('topSpend').innerHTML = '';
     return;
