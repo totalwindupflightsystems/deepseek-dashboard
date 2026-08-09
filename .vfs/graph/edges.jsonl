@@ -15,3 +15,5 @@
 {"from":"tests/zipPipeline.test.js","to":"pkg:fs","rel":"imports","provenance":"ast_exact","confidence":1.0}
 {"from":"tests/zipPipeline.test.js","to":"pkg:path","rel":"imports","provenance":"ast_exact","confidence":1.0}
 {"from":"tests/keyFilter.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/uploadToast.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/uploadToast.test.js","to":"pkg:jszip","rel":"imports","provenance":"ast_exact","confidence":1.0}
