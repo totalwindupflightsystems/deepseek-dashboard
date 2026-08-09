@@ -19,6 +19,8 @@ paths = [
   'node_modules/',
   'specs/',
   'docs/',
+  'tests/',
+  '.coding-hermes/',
   '.pnpm-store/',
   'dist/',
   'build/',

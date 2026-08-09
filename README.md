@@ -78,7 +78,7 @@ It's three files. Open `index.html`, `js/dashboard.js`, and `css/dashboard.css` 
 - **sql.js 1.14.1** — SQLite persistence via IndexedDB (CDN)
 - **Vanilla JS** — No framework, no build step, no bundler (npm used for vitest + jsdom testing only)
 - **CSS Grid + Flexbox** — Responsive layout, no CSS framework
-- **Testing** — vitest 4.1.10 + jsdom 29.1.1, 6 test files, 680 lines
+- **Testing** — vitest 4.1.10 + jsdom 29.1.1, 7 test files, 800 lines
 - **CI/CD** — GitHub Actions (vitest + html-validate + deploy-check)
 
 ## Data Format
