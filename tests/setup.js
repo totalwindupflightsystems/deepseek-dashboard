@@ -61,6 +61,7 @@ const funcNames = [
   'getPricingModels', 'getAvgPriceForModel',
   'collectPricesFromInputs', 'recalcPricing',
   'getDailyData',
+  'exportRowToCsv',
 ];
 
 for (const name of funcNames) {

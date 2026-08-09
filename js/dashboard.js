@@ -1684,11 +1684,20 @@ document.getElementById('exportBtn').addEventListener('click', () => {
   toast('CSV exported');
 });
 
+// DSD-GAP-014: pure row mapper for the raw export. SELECT order is
+// utc_date, model, api_key_name, type, amount, price — so r[4]=amount,
+// r[5]=price. Extracted for unit testing (tests/export.test.js).
+function exportRowToCsv(r) {
+  const amount = Number(r[4] || 0);
+  const price = Number(r[5] || 0);
+  return [r[0], r[1], r[2], r[3], r[4], r[5], amount * price].join(',');
+}
+
 document.getElementById('exportAllBtn').addEventListener('click', () => {
   if (!activeWsId) return;
-  const r = db.exec(`SELECT * FROM token_usage WHERE workspace_id=? ORDER BY utc_date`, [activeWsId]);
+  const r = db.exec(`SELECT utc_date, model, api_key_name, type, amount, price FROM token_usage WHERE workspace_id=? ORDER BY utc_date`, [activeWsId]);
   const rows = r.length ? r[0].values : [];
-  const csv = 'utc_date,model,api_key_name,type,amount,price,cost\n' + rows.map(r => [r[2],r[3],r[4],r[5],r[6],r[7],Number(r[6]||0)*Number(r[7]||0)].join(',')).join('\n');
+  const csv = 'utc_date,model,api_key_name,type,amount,price,cost\n' + rows.map(exportRowToCsv).join('\n');
   const blob = new Blob([csv],{type:'text/csv'}); const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href=url; a.download='deepseek-raw-export.csv'; a.click(); URL.revokeObjectURL(url);
   toast('Full raw data exported');
