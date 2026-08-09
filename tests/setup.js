@@ -60,6 +60,7 @@ const funcNames = [
   'loadCustomPrices', 'saveCustomPrices',
   'getPricingModels', 'getAvgPriceForModel',
   'collectPricesFromInputs', 'recalcPricing',
+  'getDailyData',
 ];
 
 for (const name of funcNames) {

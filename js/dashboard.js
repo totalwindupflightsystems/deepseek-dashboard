@@ -586,11 +586,12 @@ function queryPeriod(period) {
   return ['1','1'];
 }
 
-function getDailyData(period, model) {
+function getDailyData(period, model, key) {
   const [start, end] = queryPeriod(period);
   let where = 'workspace_id = ? AND utc_date >= ? AND utc_date <= ?';
   const params = [activeWsId, start, end];
   if (model && model !== 'all') { where += ' AND model = ?'; params.push(model); }
+  if (key && key !== 'all') { where += ' AND api_key_name = ?'; params.push(key); }
 
   // Aggregate token_usage
   const days = {};
@@ -619,8 +620,11 @@ function getDailyData(period, model) {
     }
   }
 
-  // Merge cost_daily
-  const cdRows = db.exec(`SELECT utc_date, model, SUM(cost) as total_cost FROM cost_daily WHERE ${where} GROUP BY utc_date, model`, params);
+  // Merge cost_daily (cost_daily has no api_key_name column — filter by workspace/date/model only)
+  let cdWhere = 'workspace_id = ? AND utc_date >= ? AND utc_date <= ?';
+  const cdParams = [activeWsId, start, end];
+  if (model && model !== 'all') { cdWhere += ' AND model = ?'; cdParams.push(model); }
+  const cdRows = db.exec(`SELECT utc_date, model, SUM(cost) as total_cost FROM cost_daily WHERE ${cdWhere} GROUP BY utc_date, model`, cdParams);
   if (cdRows.length) {
     for (const row of cdRows[0].values) {
       const [date, mdl, cost] = row;
@@ -730,8 +734,9 @@ async function refreshAll() {
   if (!activeWsId) return;
   const period = document.getElementById('periodSelect').value || 'all';
   const modelFilter = document.getElementById('modelSelect').value || 'all';
+  const keyFilter = document.getElementById('keySelect').value || 'all';
 
-  const days = getDailyData(period, modelFilter);
+  const days = getDailyData(period, modelFilter, keyFilter);
   _currentDays = days;
   const granularity = document.getElementById('granularitySelect')?.value || 'daily';
   const chartDays = groupDays(days, granularity);
@@ -780,7 +785,7 @@ async function refreshAll() {
   renderModelPie(chartDays);
   renderRatioChart(chartDays);
   renderTopSpend(chartDays);
-  renderKeyChart(chartDays);
+  renderKeyChart(chartDays, keyFilter);
 
   // Anomaly Detection
   const prefs = loadAnomalyPrefs();
@@ -810,12 +815,13 @@ async function refreshAll() {
   const keySel = document.getElementById('keySelect');
   const keys = getKeys();
   keySel.innerHTML = '<option value="all">All Keys</option>' + keys.map(k => '<option value="' + escapeHtml(k) + '">' + escapeHtml(k) + '</option>').join('');
+  keySel.value = keys.includes(keyFilter) ? keyFilter : 'all';
 
   // Refresh upload history
   renderUploadHistory();
 
   // Refresh raw data table
-  renderTable(days, modelFilter);
+  renderTable(days, modelFilter, keyFilter);
 }
 
 function isMobileChart() { return window.innerWidth <= 768; }
@@ -1066,12 +1072,15 @@ function renderTopSpend(days) {
   ).join('');
 }
 
-function renderKeyChart(days) {
+function renderKeyChart(days, keyFilter) {
   destroyChart('key');
   if (!activeWsId) return;
 
   // Get per-key costs from DB
-  const r = db.exec(`SELECT api_key_name, SUM(price*amount) as total_cost FROM token_usage WHERE workspace_id = ? AND type != 'request_count' GROUP BY api_key_name ORDER BY total_cost DESC`, [activeWsId]);
+  let where = 'workspace_id = ? AND type != \'request_count\'';
+  const params = [activeWsId];
+  if (keyFilter && keyFilter !== 'all') { where += ' AND api_key_name = ?'; params.push(keyFilter); }
+  const r = db.exec(`SELECT api_key_name, SUM(price*amount) as total_cost FROM token_usage WHERE ${where} GROUP BY api_key_name ORDER BY total_cost DESC`, params);
   if (!r.length) return;
 
   const entries = r[0].values.filter(v => v[0]).slice(0, 12);
@@ -1485,7 +1494,7 @@ function _updateVisibleRows(vs) {
 }
 
 // -- renderTable --
-function renderTable(days, modelFilter) {
+function renderTable(days, modelFilter, keyFilter) {
   if (!activeWsId) return;
 
   const period = document.getElementById('periodSelect').value || 'all';
@@ -1494,6 +1503,7 @@ function renderTable(days, modelFilter) {
   let where = 'workspace_id = ? AND utc_date >= ? AND utc_date <= ?';
   const params = [activeWsId, start, end];
   if (modelFilter && modelFilter !== 'all') { where += ' AND model = ?'; params.push(modelFilter); }
+  if (keyFilter && keyFilter !== 'all') { where += ' AND api_key_name = ?'; params.push(keyFilter); }
 
   // Count total matching rows first (fast COUNT query)
   const countR = db.exec(`SELECT COUNT(*) FROM token_usage WHERE ${where}`, params);
