@@ -8,3 +8,10 @@
 {"from":"tests/getISOWeekStart.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
 {"from":"tests/pricing.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
 {"from":"tests/parseCSV-edge.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/periodFilter.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/export.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/zipPipeline.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/zipPipeline.test.js","to":"pkg:jszip","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/zipPipeline.test.js","to":"pkg:fs","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/zipPipeline.test.js","to":"pkg:path","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/keyFilter.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
