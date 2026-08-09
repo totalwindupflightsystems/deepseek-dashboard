@@ -415,7 +415,7 @@ async function _processSingleFile(file) {
     }
   }
 
-  if (!amountRows.length && !costRows.length) throw new Error('No CSV data found in ZIP');
+  if (!amountRows.length && !costRows.length) throw new Error('No amount-*/cost-* CSV found in archive');
 
   // Normalize date format: YYYYMMDD → YYYY-MM-DD (DeepSeek changed formats mid-2026)
   for (const r of amountRows) {
@@ -540,6 +540,7 @@ async function handleMultipleUpload(files) {
   }
 
   let successCount = 0, failCount = 0;
+  const failReasons = [];
 
   for (let i = 0; i < fileArray.length; i++) {
     const file = fileArray[i];
@@ -552,6 +553,7 @@ async function handleMultipleUpload(files) {
     } catch(e) {
       toast(`Error: ${file.name} — ${e.message}`, true);
       console.error(e);
+      failReasons.push(`${file.name}: ${e.message}`);
       failCount++;
     }
   }
@@ -560,7 +562,14 @@ async function handleMultipleUpload(files) {
   dz.querySelector('.drop-title').textContent = 'Drop DeepSeek usage ZIP here';
 
   if (failCount > 0) {
-    toast(`Done: ${successCount} succeeded, ${failCount} failed`);
+    let summary = `Done: ${successCount} succeeded, ${failCount} failed`;
+    const reasonStr = ' — ' + failReasons.join('; ');
+    if (summary.length + reasonStr.length > 200) {
+      summary += reasonStr.slice(0, 200 - summary.length - 3) + '...';
+    } else {
+      summary += reasonStr;
+    }
+    toast(summary, true);
   }
 
   await refreshAll();

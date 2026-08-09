@@ -15,7 +15,7 @@ This dashboard fixes that. Drag in your DeepSeek usage ZIP. Get charts, trends, 
 - All parsing, aggregation, and charting is client-side JavaScript
 - No analytics, no telemetry, no CDN calls that phone home
 - CDN imports (JSZip, Chart.js, sql.js) are the only external requests — all are version-pinned
-- localStorage used only for preferences (theme, granularity, anomaly settings, pricing overrides) — usage data is in-memory and evaporates when you close the tab
+- localStorage used only for preferences (theme, granularity, anomaly settings, pricing overrides) — usage data itself is stored in your browser's IndexedDB, isolated per workspace, and persists across reloads until you click **Clear** (it never leaves your machine)
 
 **How to verify:** Open DevTools → Network tab. Drag in your ZIP. The only requests you'll see are the three CDN script loads (JSZip + Chart.js + sql.js). Zero outbound data.
 
