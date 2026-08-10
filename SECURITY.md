@@ -10,7 +10,7 @@ This dashboard processes ALL data client-side. No data is sent to any server:
 
 - DeepSeek usage ZIPs are parsed in-browser via JSZip
 - All aggregation, charting, and analysis is JavaScript running in your browser
-- Data is stored in-memory and evaporates when you close the tab
+- Uploaded usage data persists in IndexedDB per workspace (sql.js database, store `sqlite-db`) until you click **Clear** — it survives reloads but never leaves your browser
 - The only external requests are version-pinned CDN loads (JSZip, Chart.js v4, sql.js)
 - No analytics, telemetry, or tracking of any kind
 
