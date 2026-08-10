@@ -18,4 +18,4 @@ Make sure you upload the `.zip` export from DeepSeek (direct CSV upload is rejec
 This dashboard uses Chart.js loaded from CDN. Check your network connection and ad-blocker settings.
 
 **Q: My data disappears when I refresh.**
-Data is stored in your browser's localStorage. Clearing browser data will delete it. Use the Export feature to save your data.
+Data is stored in your browser's IndexedDB database (via sql.js) — it survives reloads until you clear it. Clearing browser data will delete it, or use the Clear button in the workspace. Use the Export feature to save your data.
