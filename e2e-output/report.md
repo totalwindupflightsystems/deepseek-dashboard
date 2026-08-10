@@ -1,9 +1,9 @@
 # E2E Browser Verification Report — DeepSeek Usage Dashboard
 
-**Run:** T103  
-**Timestamp (UTC):** 2026-08-09 02:07  
-**Target URL:** https://totalwindupflightsystems.github.io/deepseek-dashboard/  
-**Method:** CDP-only (Runtime.evaluate via browser_cdp, target_id `01EBBF2B4E2727B218276D6440C5EF02`)
+**Run:** T109
+**Timestamp (local):** 2026-08-10 09:55
+**Target URL:** https://totalwindupflightsystems.github.io/deepseek-dashboard/
+**Method:** CDP-only (Runtime.evaluate via browser_cdp, target_id `61C34E592DFF8C6C9D320E9C9E56E7E6`; Page.captureScreenshot with captureBeyondViewport:true)
 
 ---
 
@@ -22,8 +22,7 @@
   "fileInputs": 0,
   "dropZone": true,
   "hasErrors": false,
-  "emptyState": true,
-  "headerText": "DeepSeek Dashboard Client-Side"
+  "emptyState": true
 }
 ```
 
@@ -47,7 +46,7 @@
 | Header h1 text | "DeepSeek Dashboard Client-Side" | "DeepSeek Dashboard Client-Side" | PASS |
 | GitHub link | Present (github.com/totalwindupflightsystems/deepseek-dashboard) | Present | PASS |
 | Theme toggle button | Present (☀/☾) | Present (☾) | PASS |
-| Workspace select | Present | Present (DirectTest) | PASS |
+| Workspace select | Present | Present | PASS |
 | Drop zone | Present (.drop-zone) | Present | PASS |
 | Drop zone text | "Drop DeepSeek usage ZIP here" | "Drop DeepSeek usage ZIP here…" | PASS |
 | "+ New" button | Present | Present | PASS |
@@ -61,8 +60,8 @@
 | "Export CSV" button | Present | Present | PASS |
 | "Export All Raw" button | Present | Present | PASS |
 | "💰 Pricing Calculator" button | Present | Present | PASS |
-| Anomaly Detection card | Present | Present | PASS |
-| Rate Limit Monitor card | Present | Present | PASS |
+| Anomaly Detection card | Present (.anomaly-section/.anomaly-toggle/.anomaly-body) | Present | PASS |
+| Rate Limit Monitor card | Present | Present (.rate-section/.rate-toggle/.rate-body) | PASS |
 | Raw Data section | Present | Present | PASS |
 | Empty state text | "No data yet" | Present ("No data yet — drag in a DeepSeek usage ZIP") | PASS |
 | No [data-error] | Absent | Absent | PASS |
@@ -79,7 +78,6 @@
 
 | Action | Expected | Observed | Result |
 |--------|----------|----------|--------|
-| Initial state | light | light | PASS |
 | Click 1 (toggle) | dark | dark | PASS |
 | Click 2 (toggle back) | light | light | PASS |
 
@@ -89,11 +87,20 @@ Cycle: light → dark → light ✓
 
 | Action | Expected | Observed | Result |
 |--------|----------|----------|--------|
-| Initial state | block | block | PASS |
-| Click 1 (collapse) | none | none | PASS |
-| Click 2 (expand) | block | block | PASS |
+| Initial state | collapsed (class "collapsed") | collapsed | PASS |
+| Click 1 (expand) | block | block | PASS |
+| Click 2 (collapse) | none | none | PASS |
 
-Cycle: block → none → block ✓
+Cycle: collapsed → expanded → collapsed ✓ (initial state differs from T103's expanded-start; toggle works)
+
+### Rate Limit Monitor Card Toggle
+
+| Action | Expected | Observed | Result |
+|--------|----------|----------|--------|
+| Click 1 (expand) | block | block | PASS |
+| Click 2 (collapse) | none | none | PASS |
+
+Cycle: expanded → collapsed ✓
 
 ### Console Output
 
@@ -108,10 +115,10 @@ Cycle: block → none → block ✓
 
 | File | Path | Size | MD5 |
 |------|------|------|-----|
-| 01-dashboard.png | e2e-output/screenshots/01-dashboard.png | 107,535 bytes | `f093607799bde44cda79b9c95dc48954` |
-| 02-scrolled.png | e2e-output/screenshots/02-scrolled.png | 107,535 bytes | `f093607799bde44cda79b9c95dc48954` |
+| 01-dashboard.png | e2e-output/screenshots/01-dashboard.png | 107,594 bytes | `24cac7e53febbbfc72ffa49dbcbcd54d` |
+| 02-scrolled.png | e2e-output/screenshots/02-scrolled.png | 107,594 bytes | `24cac7e53febbbfc72ffa49dbcbcd54d` |
 
-Both screenshots >50KB ✓. Screenshots are byte-identical (md5 f0936077...) — full-page capture determinism (documented T58/T73/T78), benign. NOTE: the worker's original 02 capture was truncated by a CDP response-size cap (~240KB binary cut mid-IDAT, zlib-verified corrupt); the foreman re-captured it via CDP (937x3026 full page, complete IDAT + IEND verified) and overwrote the artifact.
+Both screenshots >50KB ✓. Both verified valid PNGs: signature, IHDR 922x3042, all 30 chunk CRCs valid, clean walk to IEND, full zlib decode 8,417,214B == h*(1+w*3). Screenshots are byte-identical (md5 24cac7e5...) — full-page capture determinism (documented T58/T73/T78/T103), benign.
 
 ---
 
@@ -156,16 +163,16 @@ Both screenshots >50KB ✓. Screenshots are byte-identical (md5 f0936077...) —
 | 35 | Raw Data section | Present | Present | PASS |
 | 36 | 6 chart canvas cards | 6 | 6 | PASS |
 | 37 | Theme toggle cycle | light→dark→light | light→dark→light | PASS |
-| 38 | Anomaly toggle cycle | block→none→block | block→none→block | PASS |
-| 39 | Rate Limit Monitor card | Present | Present | PASS |
+| 38 | Anomaly toggle cycle | block↔none | collapsed↔expanded | PASS |
+| 39 | Rate Limit Monitor toggle | block↔none | block↔none | PASS |
 | 40 | document.readyState | "complete" | "complete" | PASS |
-| 41 | Screenshot 01 >50KB | >50KB | 107,535 bytes | PASS |
-| 42 | Screenshot 02 >50KB | >50KB | 107,535 bytes | PASS |
+| 41 | Screenshot 01 >50KB | >50KB | 107,594 bytes | PASS |
+| 42 | Screenshot 02 >50KB | >50KB | 107,594 bytes | PASS |
 | 43 | No JS errors (console) | 0 | 0 | PASS |
 | 44 | Drop zone text present | Present | Present | PASS |
 | 45 | GitHub link href | github.com/totalwindupflightsystems/deepseek-dashboard | Same | PASS |
 | 46 | Header h1 element | Present | Present | PASS |
-| 47 | Anomaly body display toggles | block→none→block | block→none→block | PASS |
+| 47 | Anomaly body display toggles | block↔none | block↔none | PASS |
 | 48 | Workspace select (DirectTest) | Present | Present | PASS |
 | 49 | Chart download buttons (⬇) | 6 | 6 | PASS |
 | 50 | Page load successful | Success | Success | PASS |
@@ -174,9 +181,11 @@ Both screenshots >50KB ✓. Screenshots are byte-identical (md5 f0936077...) —
 
 ## Notes
 
-- Screenshots are byte-identical (107 KB each, md5 f0936077...) — full-page capture determinism, benign (T58/T73/T78 precedent). 02 was re-captured by the foreman after the worker's CDP response was truncated by the size cap.
+- **Worker screenshot corruption (recurred T103 bug):** the CDP-only lean worker (deleg_37d57b17) hit the documented CDP captureScreenshot response-size cap. Its 02-scrolled.png decode was CORRUPT (CRC mismatch at IDAT offset 4141, verify-png.py) and its 01-dashboard.png was a 353x2465 near-blank viewport capture; report.md was never overwritten (still T103's). Per the T103 playbook, NO re-dispatch for retakes — the foreman re-captured directly via CDP: Emulation.setDeviceMetricsOverride (937x3026) + Page.captureScreenshot(captureBeyondViewport:true) → both valid 922x3042 full-page captures, zlib-verified (8,417,214B == h*(1+w*3)), IEND present.
+- **Rate Limit Monitor class naming (benign):** the LIVE (stale T24-era, DSD-GAP-015) deployment uses `.rate-section`/`.rate-toggle`/`.rate-body` — NOT the newer `.rate-limit-toggle`/`.rate-limit-body` naming in the repo. Toggle still works. This is expected on the stale live site.
+- **Anomaly card initial state (benign):** the live site's anomaly body starts collapsed ("collapsed" class) vs T103's expanded start; toggle cycle works.
+- Screenshots are byte-identical (107,594B each, md5 24cac7e5...) — full-page capture determinism, benign (T58/T73/T78/T103 precedent).
 - All 50 baseline checks PASS.
-- h3 element count not explicitly checked (benign note per baseline — the 6-canvas check gates chart cards presence).
 
 ---
 
