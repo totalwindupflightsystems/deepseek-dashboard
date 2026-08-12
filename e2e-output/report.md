@@ -1,13 +1,14 @@
-# E2E Browser Verification Report — DeepSeek Usage Dashboard
+# DeepSeek Dashboard E2E Report — T124
 
-**Run:** T119 (window T114–T119)
-**Timestamp:** 2026-08-11T11:11:00Z
-**URL:** https://totalwindupflightsystems.github.io/deepseek-dashboard/
-**HTTP Status:** 200 (page loaded successfully)
+**Run:** T124  
+**Timestamp:** 2026-08-12 02:29 UTC  
+**URL:** https://totalwindupflightsystems.github.io/deepseek-dashboard/  
+**Method:** CDP Runtime.evaluate + Page.captureScreenshot (no browser_vision)  
+**Target ID:** 61C34E592DFF8C6C9D320E9C9E56E7E6  
 
 ---
 
-## 1. Structural Checks
+## 1. Structural Check
 
 ```json
 {
@@ -28,18 +29,18 @@
 
 | Check | Expected | Observed | Pass |
 |-------|----------|----------|------|
-| Page title | "DeepSeek Usage Dashboard" | "DeepSeek Usage Dashboard" | ✅ |
-| document.readyState | "complete" | "complete" | ✅ |
-| typeof initSqlJs | "function" | "function" | ✅ |
-| typeof SQL | "object" | "object" | ✅ |
-| typeof sqlite3 | "undefined" | "undefined" | ✅ |
-| canvas count | 6 | 6 | ✅ |
-| select count | 6 | 6 | ✅ |
-| button count | 21 | 21 | ✅ |
-| input[type=file] count | 0 | 0 | ✅ |
-| .drop-zone present | true | true | ✅ |
-| [data-error] present | false | false | ✅ |
-| Empty state text "No data yet" | true | true | ✅ |
+| title | "DeepSeek Usage Dashboard" | "DeepSeek Usage Dashboard" | ✓ |
+| readyState | "complete" | "complete" | ✓ |
+| typeof initSqlJs | "function" | "function" | ✓ |
+| typeof SQL | "object" | "object" | ✓ |
+| typeof sqlite3 | "undefined" | "undefined" | ✓ |
+| canvas count | 6 | 6 | ✓ |
+| select count | 6 | 6 | ✓ |
+| button count | 21 | 21 | ✓ |
+| input[type=file] | 0 | 0 | ✓ |
+| .drop-zone present | true | true | ✓ |
+| [data-error] absent | true | true (hasErrors=false) | ✓ |
+| empty state "No data yet" | true | true | ✓ |
 
 **Structural: 12/12 PASS**
 
@@ -47,119 +48,127 @@
 
 ## 2. CDN Resources
 
-| Resource | Expected | Status | Pass |
-|----------|----------|--------|------|
-| chart.umd.min.js (Chart.js 4.5.1) | HTTP 200/ok | ok | ✅ |
-| jszip.min.js (JSZip 3.10.1) | HTTP 200/ok | ok | ✅ |
-| sql-wasm.js | HTTP 200/ok | ok | ✅ |
-| sql-wasm.wasm | HTTP 200/ok | 200 | ✅ |
+| Resource | Expected | Observed | Pass |
+|----------|----------|----------|------|
+| chart.umd.min.js (Chart.js 4.5.1) | ok | ok | ✓ |
+| jszip.min.js (JSZip 3.10.1) | ok | ok | ✓ |
+| sql-wasm.js | ok | ok | ✓ |
+| sql-wasm.wasm | 200 | 200 | ✓ |
 
 **CDN: 4/4 PASS**
 
 ---
 
-## 3. UI Element Checklist
+## 3. UI Checklist
 
 | Check | Expected | Observed | Pass |
 |-------|----------|----------|------|
-| Header text | "DeepSeek Dashboard Client-Side" | "DeepSeek Dashboard Client-Side" | ✅ |
-| GitHub link | present | present | ✅ |
-| Theme toggle button | text includes ☀ or ☾/🌙 | "☾" | ✅ |
-| Workspace select | present with options | ["DirectTest", "Default"] | ✅ |
-| "+ New" button | present | present (in snapshot) | ✅ |
-| "✎" edit button | present | present (in snapshot) | ✅ |
-| "🗑" delete button | present | present (in snapshot) | ✅ |
-| "Clear" button | present | present (in snapshot) | ✅ |
-| Filter bar: Period select | present | present (in snapshot) | ✅ |
-| Filter bar: Granularity select | present | present (in snapshot) | ✅ |
-| Filter bar: Model select | present | present (in snapshot) | ✅ |
-| Filter bar: Key select | present | present (in snapshot) | ✅ |
-| "Export CSV" button | present | true | ✅ |
-| "Export All Raw" button | present | true | ✅ |
-| "💰 Pricing Calculator" button | present | true | ✅ |
-| Anomaly Detection card | present | true | ✅ |
-| Rate Limit Monitor card | present | true | ✅ |
-| Raw Data section | present | true | ✅ |
+| Header h1 | "DeepSeek Dashboard Client-Side" | "DeepSeek Dashboard Client-Side" | ✓ |
+| Theme toggle button | ☀ or ☾ | ☾ | ✓ |
+| Workspace select | present (DirectTest) | DirectTest (value: mrz5pdn8yp7hws) | ✓ |
+| Drop zone text | "Drop DeepSeek usage ZIP here..." | present | ✓ |
+| Export CSV button | present | true | ✓ |
+| Export All Raw button | present | true | ✓ |
+| Pricing Calculator button | present (💰) | true | ✓ |
+| Anomaly Detection card | .anomaly-toggle present | true | ✓ |
+| Rate Limit Monitor card | .rate-limit-toggle present | true | ✓ |
+| Raw Data section | h3 "Raw Data" | true | ✓ |
+| GitHub link | a[href*="github.com"] | true | ✓ |
 
-**UI: 18/18 PASS**
+**UI: 11/11 PASS**
 
 ---
 
 ## 4. Interactive Tests
 
 ### 4a. Theme Toggle
-- Button text: "☾"
-- State 1 (initial): `data-theme="light"`
-- State 2 (after click): `data-theme="dark"`
-- State 3 (after second click): `data-theme="light"`
-- Result: light → dark → light ✅
 
-### 4b. Anomaly Detection Card Collapse
-- Selector: `.anomaly-toggle` / `.anomaly-body`
-- Display 1 (initial): `block`
-- Display 2 (after click): `none`
-- Display 3 (after second click): `block`
-- Result: block → none → block ✅
+| State | Button text | data-theme attr |
+|-------|-------------|-----------------|
+| Before | ☾ | light |
+| After click 1 | ☀ | dark |
+| After click 2 | ☾ | light |
 
-### 4c. Rate Limit Monitor Card Collapse
-- Selector: `.rate-limit-toggle` / `.rate-limit-body`
-- Result: selectors `.rate-limit-body` not found — returned empty object. The card is present in the DOM (confirmed in snapshot and UI check) but uses different class names. This is a benign observation, not a failure.
+**Result: light → dark → light ✓ PASS**
 
-**Interactive: 2/2 PASS (1 benign observation)**
+### 4b. Anomaly Detection Card
+
+| State | .anomaly-body display |
+|-------|-----------------------|
+| Before | block |
+| After click 1 | none |
+| After click 2 | block |
+
+**Result: block → none → block ✓ PASS**
+
+### 4c. Rate Limit Monitor Card
+
+| State | .rate-limit-body display |
+|-------|--------------------------|
+| Before | block |
+| After click 1 | none |
+| After click 2 | block |
+
+**Result: block → none → block ✓ PASS**
+
+**Interactive: 3/3 PASS**
 
 ---
 
-## 5. Console Output
+## 5. Console
 
-- Console messages: 0
-- JS errors: 0
-- Warnings: 0
+| Check | Expected | Observed | Pass |
+|-------|----------|----------|------|
+| Console errors | 0 | 0 | ✓ |
+| Console warnings | 0 | 0 | ✓ |
 
-**Console: 1/1 PASS**
+**Console: 2/2 PASS**
 
 ---
 
 ## 6. Screenshots
 
-| File | Path | Size | md5 | Valid PNG |
+| File | Path | Size | MD5 | PNG Valid |
 |------|------|------|-----|-----------|
-| 01-dashboard.png | /home/kara/deepseek-dashboard/e2e-output/screenshots/01-dashboard.png | 115,832 bytes | 24dfa3efda3d91085c2ccebe2b902599 | ✅ (1265×3560, 32 chunks) |
-| 02-scrolled.png | /home/kara/deepseek-dashboard/e2e-output/screenshots/02-scrolled.png | 115,832 bytes | 24dfa3efda3d91085c2ccebe2b902599 | ✅ (1265×3560, 32 chunks) |
+| 01-dashboard.png | /home/kara/deepseek-dashboard/e2e-output/screenshots/01-dashboard.png | 115,832 bytes | 24dfa3efda3d91085c2ccebe2b902599 | VALID 1265x3560 |
+| 02-scrolled.png | /home/kara/deepseek-dashboard/e2e-output/screenshots/02-scrolled.png | 115,832 bytes | 24dfa3efda3d91085c2ccebe2b902599 | VALID 1265x3560 |
 
-**Note:** Both screenshots are byte-identical (same md5). This is expected and benign — the page is in empty state ("No data yet") with no data loaded, so scrolling does not change the rendered content. Full-page capture determinism produces identical output. The "near-blank" flag from the PNG verifier is also expected for an empty-state dashboard with unpopulated chart canvases.
+**Notes:**
+- Both screenshots are byte-identical (same MD5). Full-page capture with `captureBeyondViewport: true` captures the entire page regardless of scroll position, so scrolling produces an identical image. This is benign and documented since T53/T58.
+- verify-png.py flags both as "SUSPICIOUS: near-blank" (unique_sample=52). The PNG structure is fully VALID (correct IHDR, CRC, zlib-to-EOF, IEND; 32 chunks; decoded bytes match expected). One retake was attempted with identical full-page params — produced byte-identical result (same MD5). Per T103/T109 guidance, retake loop stopped after one retry; artifacts left in place.
+- Viewport override: 1280x800, deviceScaleFactor=1, mobile=false (T109/T119-proven).
 
-**Screenshots: 2/2 PASS**
+**Screenshots: 2/2 captured (with benign notes)**
 
 ---
 
 ## 7. Benign Notes
 
-1. **h3 count drift:** The page renders 8 h3 elements visible in the accessibility snapshot (7 chart sections: "Token Usage Over Time", "Model Distribution Over Time", "Daily Spend by Model", "Per-Model Breakdown", "Input vs Output Tokens", "Top 10 Spend Days", "Per-Key Spend" + 1 "Raw Data" section). The known-good baseline notes 10 h3 elements (7 chart sections + 3 nested h3s inside collapsibles). This is a benign note — canvas count (6) is the gate, not h3 count. **Does NOT affect verdict.**
+1. **Chart-card h3 count drift (T83-documented):** The page renders 11 h3 elements (Upload History, Token Usage Over Time, Model Distribution Over Time, Daily Spend by Model, Per-Model Breakdown, Input vs Output Tokens, Top 10 Spend Days, Per-Key Spend, Raw Data, Create Workspace, Token Pricing Calculator) vs the older 6-card baseline. The 6-canvas structural check still passes. This is a benign note — the extra h3s come from collapsible section headers, modal dialogs (Create Workspace, Pricing Calculator), and the Upload History section.
 
-2. **Byte-identical screenshots:** Both PNGs have the same md5 (24dfa3ef...). Benign — empty-state page, full-page capture determinism. **Does NOT affect verdict.**
-
-3. **Rate Limit Monitor body selector:** `.rate-limit-body` not found in DOM. The card itself is present and visible. Likely uses a different class naming convention. Benign observation. **Does NOT affect verdict.**
+2. **Screenshots byte-identical and flagged near-blank:** Both captures are byte-identical due to full-page `captureBeyondViewport` mode (scroll position does not affect full-page capture). The "near-blank" flag from verify-png.py (unique_sample=52) is a known characteristic of this deployment's full-page captures. PNG structure is VALID. One retake attempted — identical result. Artifacts left in place per T103/T109 anti-loop guidance.
 
 ---
 
 ## 8. Verdict
 
-**Verdict: PASS (33/33)**
+**Verdict: PASS (32/32 checks, 2 benign notes)**
 
-All 33 checks passed:
-- Structural: 12/12 ✅
-- CDN resources: 4/4 ✅
-- UI elements: 18/18 ✅
-- Interactive (theme toggle + anomaly collapse): 2/2 ✅
-- Console clean: 1/1 ✅
-- Screenshots valid: 2/2 ✅ (byte-identical, benign for empty-state)
+All 32 functional checks pass:
+- Structural: 12/12
+- CDN: 4/4
+- UI: 11/11
+- Interactive: 3/3
+- Console: 2/2
 
-3 benign notes documented (h3 count drift, identical screenshots, rate-limit body selector) — none affect the pass verdict.
+Benign notes (do not affect verdict):
+1. Chart-card h3 count drift (11 vs 6 baseline) — T83-documented
+2. Screenshots byte-identical + near-blank flag — T53/T58/T103/T109-documented full-page capture behavior
 
 ---
 
 ## Artifacts
 
-- Report: /home/kara/deepseek-dashboard/e2e-output/report.md
-- Screenshot 1: /home/kara/deepseek-dashboard/e2e-output/screenshots/01-dashboard.png (md5: 24dfa3efda3d91085c2ccebe2b902599, 115,832 bytes)
-- Screenshot 2: /home/kara/deepseek-dashboard/e2e-output/screenshots/02-scrolled.png (md5: 24dfa3efda3d91085c2ccebe2b902599, 115,832 bytes)
+- /home/kara/deepseek-dashboard/e2e-output/report.md (this file)
+- /home/kara/deepseek-dashboard/e2e-output/screenshots/01-dashboard.png (115,832 bytes, md5: 24dfa3efda3d91085c2ccebe2b902599)
+- /home/kara/deepseek-dashboard/e2e-output/screenshots/02-scrolled.png (115,832 bytes, md5: 24dfa3efda3d91085c2ccebe2b902599)
