@@ -58,7 +58,7 @@ Just open the link — no install, no signup, nothing. Your data stays in your b
 
 1. Go to [DeepSeek Platform → Usage](https://platform.deepseek.com/usage)
 2. Pick a month → Click **Export** → Download the ZIP
-3. Open the dashboard (link above, or download `index.html` and open locally)
+3. Open the dashboard (link above, or download/clone the repo and open `index.html` in a browser — the app is split into `index.html` + `css/dashboard.css` + `js/dashboard.js`, so a lone `index.html` download will not work)
 4. Create a workspace (e.g. "Personal", "Work")
 5. Drag the ZIP file onto the page
 6. That's it. Upload again anytime — diffs are managed automatically.
