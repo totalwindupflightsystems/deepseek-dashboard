@@ -69,7 +69,7 @@ Just open the link — no install, no signup, nothing. Your data stays in your b
 
 ## How to Verify the Code
 
-It's three files. Open `index.html`, `js/dashboard.js`, and `css/dashboard.css` in any text editor. Read them. No obfuscation, no minification, no hidden requests. The application is ~2,480 lines of vanilla HTML/CSS/JS with an 83-test Vitest suite (11 test files).
+It's three files. Open `index.html`, `js/dashboard.js`, and `css/dashboard.css` in any text editor. Read them. No obfuscation, no minification, no hidden requests. The application is ~2,580 lines of vanilla HTML/CSS/JS with an 83-test Vitest suite (11 test files).
 
 ## Tech Stack
 
