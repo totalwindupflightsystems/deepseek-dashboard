@@ -17,7 +17,7 @@ This dashboard fixes that. Drag in your DeepSeek usage ZIP. Get charts, trends, 
 - CDN imports (JSZip, Chart.js, sql.js) are the only external requests — all are version-pinned
 - localStorage used only for preferences (theme, granularity, anomaly settings, pricing overrides) — uploaded usage data persists in IndexedDB per workspace (sql.js database, store `sqlite-db`) and survives reloads until you click **Clear**
 
-**How to verify:** Open DevTools → Network tab. Drag in your ZIP. The only requests you'll see are the three CDN script loads (JSZip + Chart.js + sql.js). Zero outbound data.
+**How to verify:** Open DevTools → Network tab. Drag in your ZIP. The requests you'll see are the three version-pinned CDN script loads (JSZip + Chart.js + sql.js) plus sql.js fetching its `sql-wasm.wasm` engine — all static library downloads from cdn.jsdelivr.net that carry none of your usage data. Zero outbound data.
 
 ## Features
 
@@ -69,7 +69,7 @@ Just open the link — no install, no signup, nothing. Your data stays in your b
 
 ## How to Verify the Code
 
-It's three files. Open `index.html`, `js/dashboard.js`, and `css/dashboard.css` in any text editor. Read them. No obfuscation, no minification, no hidden requests. The application is ~2,580 lines of vanilla HTML/CSS/JS with an 83-test Vitest suite (11 test files).
+It's three files. Open `index.html`, `js/dashboard.js`, and `css/dashboard.css` in any text editor. Read them. No obfuscation, no minification, no hidden requests. The application is ~2,596 lines of vanilla HTML/CSS/JS with an 85-test Vitest suite (11 test files).
 
 ## Tech Stack
 
@@ -78,7 +78,7 @@ It's three files. Open `index.html`, `js/dashboard.js`, and `css/dashboard.css` 
 - **sql.js 1.14.1** — SQLite persistence via IndexedDB (CDN)
 - **Vanilla JS** — No framework, no build step, no bundler (npm used for vitest + jsdom testing only)
 - **CSS Grid + Flexbox** — Responsive layout, no CSS framework
-- **Testing** — vitest 4.1.10 + jsdom 29.1.1, 11 test files, 83 tests
+- **Testing** — vitest 4.1.10 + jsdom 29.1.1, 11 test files, 85 tests
 - **CI/CD** — GitHub Actions (vitest + html-validate + deploy-check)
 
 ## Data Format
