@@ -527,10 +527,15 @@ async function handleMultipleUpload(files) {
 
   // Filter to only .zip files (check extension and MIME type)
   const fileArray = [];
+  const skippedNonZip = [];
   for (let i = 0; i < files.length; i++) {
     const ext = files[i].name.toLowerCase().endsWith('.zip');
     const mime = files[i].type === 'application/zip' || files[i].type === 'application/x-zip-compressed';
-    if (ext || mime) fileArray.push(files[i]);
+    if (ext || mime) {
+      fileArray.push(files[i]);
+    } else {
+      skippedNonZip.push(files[i].name);
+    }
   }
 
   if (fileArray.length === 0) {
@@ -560,6 +565,14 @@ async function handleMultipleUpload(files) {
 
   dz.classList.remove('processing');
   dz.querySelector('.drop-title').textContent = 'Drop DeepSeek usage ZIP here';
+
+  // Report any non-ZIP files that were silently skipped during the filter
+  if (skippedNonZip.length > 0) {
+    const plural = skippedNonZip.length === 1 ? 'file' : 'files';
+    const msg = `Skipped ${skippedNonZip.length} non-ZIP ${plural}: ${skippedNonZip.join(', ')}`;
+    toast(msg);
+    console.info('Skipped non-ZIP files:', skippedNonZip);
+  }
 
   if (failCount > 0) {
     let summary = `Done: ${successCount} succeeded, ${failCount} failed`;

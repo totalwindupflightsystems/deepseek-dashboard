@@ -80,3 +80,70 @@ describe('handleMultipleUpload toast reasons (DSD-GAP-018)', () => {
     expect(finalText).not.toMatch(/failed/i);
   });
 });
+
+describe('handleMultipleUpload mixed drop (DSD-GAP-029)', () => {
+  beforeEach(() => {
+    window.JSZip = JSZip;
+    globalThis.JSZip = JSZip;
+    globalThis.activeWsId = 'ws-test';
+
+    globalThis.db = {
+      exec: () => [],
+      run: () => {},
+      prepare: () => ({ run: () => {}, free: () => {} }),
+      export: () => new Uint8Array(0),
+    };
+
+    window.saveDB = async () => {};
+    globalThis.saveDB = window.saveDB;
+    window.refreshAll = async () => {};
+    globalThis.refreshAll = window.refreshAll;
+
+    window.toast = function(msg, warn) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast show' + (warn ? ' warn' : '');
+    };
+
+    toastEl().textContent = '';
+    toastEl().className = 'toast';
+  });
+
+  it('processes the ZIP and names the skipped non-ZIP file in a notice toast', async () => {
+    const zipBytes = await buildZip({ 'amount-2026-07.csv': SYNTHETIC_AMOUNT });
+    const zipFile = makeFile('usage.zip', zipBytes);
+    const csvFile = new window.File([new Uint8Array([1, 2, 3])], 'usage.csv', { type: 'text/csv' });
+
+    // Spy on _processSingleFile to confirm the ZIP was processed
+    let processed = false;
+    const orig = window._processSingleFile;
+    window._processSingleFile = async (file) => {
+      processed = true;
+      return orig.call(window, file);
+    };
+    globalThis._processSingleFile = window._processSingleFile;
+
+    try {
+      await handleMultipleUpload([zipFile, csvFile]);
+    } finally {
+      window._processSingleFile = orig;
+      globalThis._processSingleFile = orig;
+    }
+
+    // ZIP was actually processed
+    expect(processed).toBe(true);
+
+    // Final toast mentions the skipped file by name
+    const finalText = toastEl().textContent;
+    expect(finalText).toMatch(/Skipped 1 non-ZIP file: usage\.csv/);
+  });
+
+  it('all-non-ZIP drop still shows the error toast (unchanged behavior)', async () => {
+    const csvFile = new window.File([new Uint8Array([1, 2, 3])], 'data.csv', { type: 'text/csv' });
+
+    await handleMultipleUpload([csvFile]);
+
+    const finalText = toastEl().textContent;
+    expect(finalText).toMatch(/No \.zip files found/);
+  });
+});
