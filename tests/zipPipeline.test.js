@@ -35,8 +35,8 @@ const SYNTH_COST_ROWS = 15;
 
 const SYNTHETIC_AMOUNT = [
   'user_id,utc_date,model,api_key_name,api_key,type,price,amount',
-  'u1,2026-07-01,deepseek-v4-pro,k1,sk-a1b2c3d4e5f6g7h8i9j0,completion,0.5,100',
-  'u2,2026-07-02,deepseek-v4-flash,k2,sk-a1b2c3d4e5f6g7h8i9j0,completion,0.1,200',
+  'u1,2026-07-01,deepseek-v4-pro,k1,sk-fakekey,completion,0.5,100',
+  'u2,2026-07-02,deepseek-v4-flash,k2,sk-fakekey,completion,0.1,200',
 ].join('\n') + '\n';
 
 const SYNTHETIC_COST = [
@@ -57,7 +57,7 @@ function buildSyntheticCsv(kind, rows) {
     const model = i % 2 ? 'deepseek-v4-pro' : 'deepseek-v4-flash';
     if (kind === 'amount') {
       lines.push(
-        `u${i},2026-07-${day},${model},k${(i % 3) + 1},sk-a1b2c3d4e5f6g7h8i9j0,completion,0.${i % 9},${i * 100}`
+        `u${i},2026-07-${day},${model},k${(i % 3) + 1},sk-fakekey,completion,0.${i % 9},${i * 100}`
       );
     } else {
       lines.push(`u${i},2026-07-${day},${model},Paid,0.${i % 9}000000000000000,USD`);

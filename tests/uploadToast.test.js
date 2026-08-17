@@ -18,7 +18,7 @@ async function buildZip(entries) {
 
 const SYNTHETIC_AMOUNT = [
   'user_id,utc_date,model,api_key_name,api_key,type,price,amount',
-  'u1,2026-07-01,deepseek-v4-pro,k1,sk-a1b2c3d4e5f6g7h8i9j0,completion,0.5,100',
+  'u1,2026-07-01,deepseek-v4-pro,k1,sk-fakekey,completion,0.5,100',
 ].join('\n') + '\n';
 
 describe('handleMultipleUpload toast reasons (DSD-GAP-018)', () => {
