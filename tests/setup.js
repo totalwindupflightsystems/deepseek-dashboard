@@ -62,6 +62,7 @@ const funcNames = [
   'collectPricesFromInputs', 'recalcPricing',
   'getDailyData',
   'exportRowToCsv',
+  'renderTopDaysHtml',
 ];
 
 for (const name of funcNames) {

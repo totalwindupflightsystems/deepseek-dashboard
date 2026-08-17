@@ -429,6 +429,17 @@ async function _processSingleFile(file) {
     }
   }
 
+  // Defense-in-depth (DSD-GAP-030): drop rows whose utc_date is not a valid
+  // YYYY-MM-DD string after normalization. CSV data is user-uploaded and
+  // arbitrary strings (e.g. HTML payloads) must not survive into sql.js.
+  const _dateRe = /^\d{4}-\d{2}-\d{2}$/;
+  for (let i = amountRows.length - 1; i >= 0; i--) {
+    if (amountRows[i].utc_date && !_dateRe.test(amountRows[i].utc_date)) amountRows.splice(i, 1);
+  }
+  for (let i = costRows.length - 1; i >= 0; i--) {
+    if (costRows[i].utc_date && !_dateRe.test(costRows[i].utc_date)) costRows.splice(i, 1);
+  }
+
   // Detect date range
   const dates = new Set();
   amountRows.forEach(r => { if (r.utc_date) dates.add(r.utc_date); });
@@ -1286,6 +1297,20 @@ function computeRateMetrics(days) {
   return { totalReq, avgDay, isDaily, peakDay, peakReq, topDays: sorted };
 }
 
+/**
+ * Render the rate-limit top-days list as HTML.
+ * Extracted from renderRatePanel for testability (DSD-GAP-030).
+ * d.date is CSV-derived and must be escaped to prevent XSS.
+ */
+function renderTopDaysHtml(topDays) {
+  if (!topDays || !topDays.length) {
+    return '<li style="color:var(--text-dim);font-size:0.78rem;padding:4px 0">No request data available</li>';
+  }
+  return topDays.map((d, i) =>
+    `<li><span class="r-rank">#${i+1}</span><span class="r-date">${escapeHtml(d.date)}</span><span class="r-req">${fmtNum(d.requests||0)}</span></li>`
+  ).join('');
+}
+
 function renderRatePanel(metrics) {
   const prefs = loadRatePrefs();
   const limits = getRateLimits(prefs.tier, prefs.customRpm, prefs.customDay);
@@ -1317,13 +1342,7 @@ function renderRatePanel(metrics) {
 
   // Top days
   const topList = document.getElementById('rateTopDays');
-  if (metrics.topDays.length) {
-    topList.innerHTML = metrics.topDays.map((d, i) =>
-      `<li><span class="r-rank">#${i+1}</span><span class="r-date">${d.date}</span><span class="r-req">${fmtNum(d.requests||0)}</span></li>`
-    ).join('');
-  } else {
-    topList.innerHTML = '<li style="color:var(--text-dim);font-size:0.78rem;padding:4px 0">No request data available</li>';
-  }
+  topList.innerHTML = renderTopDaysHtml(metrics.topDays);
 
   // Gauge: usage vs daily limit
   const pct = Math.min(100, (metrics.avgDay / limits.day) * 100);
