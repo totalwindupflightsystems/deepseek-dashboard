@@ -17,3 +17,4 @@
 {"from":"tests/keyFilter.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
 {"from":"tests/uploadToast.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
 {"from":"tests/uploadToast.test.js","to":"pkg:jszip","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/ratePanelXss.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
