@@ -6,8 +6,9 @@
   "scripts": {
     "test": "vitest run"
   },
+  "license": "MIT",
   "devDependencies": {
-    "jsdom": "^29.1.0",
+    "jsdom": "^30.0.1",
     "jszip": "^3.10.1",
     "vitest": "^4.1.0"
   },
