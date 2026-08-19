@@ -91,6 +91,72 @@ Y failed" without per-file reasons. A ZIP with no `amount-*`/`cost-*` entries
 fails indistinguishably from a corrupt ZIP. **Right way:** carry the failure
 reason per file (no CSVs found / invalid archive) into the toast and history.
 
+## Run 2 (2026-08-18) — what changed, and the new failure modes
+
+Run 2 was a full regression re-check + new probes (see
+`2026-08-18-integration.md`). All run-1 findings are fixed and verified on the
+**live deployed site** (now byte-identical to local HEAD after the GAP-027
+reconciliation push). The engineering lessons below are the ones that are new
+or that run 1 got wrong.
+
+### 7. Cost attribution has two sources, and they must not visually conflict (DSD-GAP-032)
+The dashboard has **two cost numbers that are both correct but sourced
+differently**:
+- `TOTAL COST` KPI / `AVG DAILY COST` ← `cost_daily` (billed per-model daily
+  cost from `cost-*.csv`; **no api_key column** — DeepSeek doesn't export cost
+  per key).
+- Per-key chart (`cKey`) and spend chart ← `token_usage` `price*amount`
+  (computed attribution). Unfiltered, both totals agree to the cent ($380.08).
+When the key filter is active, the token/request paths filter but the
+`cost_daily`-backed KPI cannot — it stays at the full billed total. A user sees
+"$380.08 total cost" next to "3,270 requests" and the per-key chart showing one
+key. **Right way:** when `keyFilter != all`, switch the cost KPI to the
+computed key-attributed value (it exists and matches in aggregate), or label
+the card "billed cost — not split by key". Never let two adjacent numbers that
+claim to be the same metric disagree.
+
+### 8. Security hardening created a silent data-integrity hole (DSD-GAP-035)
+The GAP-030 fix added parse-time date validation (drop rows whose `utc_date`
+isn't `YYYY-MM-DD` after `YYYYMMDD` normalization, dashboard.js:432-441) —
+good for XSS, but the drop is **silent**: the toast reports only kept rows
+("Added 4 rows" from a 6-row ZIP). Defense-in-depth is verified working
+(`window.__xss` never fires; `escapeHtml` also guards the render path), but
+users with a date-format quirk lose rows unknowingly. **Right way:** count
+dropped rows per file and surface them ("4 added, 2 dropped: invalid
+utc_date"). Silent drops and security are not in tension; silent *anything* is
+the enemy.
+
+### 9. Upload cost is super-linear; sql.js row-at-a-time inserts + full-DB persist (DSD-GAP-034)
+Measured: 612 rows → 228 ms; 14,240 rows → 31 s. The insert loop uses one
+prepared statement per row (fine) but there is no transaction batching, and
+`saveDB()` serializes the **entire** DB to IndexedDB after the batch; then
+`refreshAll()` re-aggregates and re-renders everything. The drop zone is stuck
+on "Processing..." the whole time with no progress. The README's own known
+limitation ("6+ months of heavy usage") is exactly where this bites. **Right
+way:** wrap inserts in `db.run('BEGIN')/COMMIT`, persist incrementally or
+debounce, and give the drop zone a progress state for large uploads.
+
+### 10. "Searchable table" is a doc ghost (DSD-GAP-033)
+README feature table says the raw data table is "Searchable, filterable".
+Zero occurrences of "search" in `index.html`/`js/dashboard.js`. The table is
+filterable via period/model/key selects and virtual-scrolls 14k rows fine, but
+there is no search box. Docs-vs-reality again — the same failure class as
+run 1's GAP-002/003/011/021/023/026 (stale claims in prose). **Right way:**
+grep the README feature table against the code before claiming features, or
+add the search (the virtual-scroll pool is already in memory — a filter input
+over it is ~20 lines).
+
+### 11. What run 1 got wrong (corrections)
+- **Key filter**: run 1 called it fully dead; it's now fixed for
+  tokens/charts but still freezes cost KPIs (see #7) — the fix was
+  partial, and its own pass criterion ("Total Cost changes") is unmet.
+- **Confirm dialogs**: Clear/Delete use `window.confirm`. Automated drivers
+  that don't accept dialogs will conclude these buttons are broken. They
+  aren't. Always register a dialog handler in the harness.
+- **Live demo**: run 1's "stale live build" (GAP-015/027) was resolved by the
+  2026-08-16 reconciliation push; the live site now matches local HEAD and
+  must be re-checked by MD5 comparison, not assumed stale.
+
 ## Historical context (from the board)
 
 - DSD-GAP-001..004 (2026-08-05): docs-vs-reality sweep — drop-help text, FAQ
