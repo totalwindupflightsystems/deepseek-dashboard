@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-08-19 — August Release Batch
+
+**Security**
+- XSS fix: CSV-derived dates in the Rate Limit panel's top-days list are now HTML-escaped — a crafted `utc_date` in an uploaded export can no longer execute script in the page (`c1614cf`).
+- All CDN scripts (JSZip, Chart.js, sql.js) now load with SRI `integrity` hashes + `crossorigin` — a compromised CDN can no longer inject code undetected (`91444c9`).
+
+**Features**
+- Client-side search over the raw data table — type to filter all loaded rows instantly (`4f42502`).
+- Key filter now drives the Total Cost / Avg Daily Cost KPIs: selecting an API key updates the cost cards to that key's computed spend, matching the per-key chart (`1a37657`).
+
+**Performance**
+- Upload performance fix: ZIP import wraps inserts in a single SQL transaction and batches IndexedDB persistence, with a visible progress indicator — large exports (6+ months of heavy usage) import in a fraction of the previous time instead of freezing on "Processing..." (`2684996`).
+
+**UX**
+- Multi-file drops now report skipped non-ZIP files by name instead of silently discarding them (`c437ec9`).
+- Uploads now surface dropped-row counts: rows with invalid `utc_date` values are counted and reported in the result toast (e.g. "4 rows added, 2 dropped (invalid utc_date)") (`6de53dd`).
+
+**Documentation**
+- README verify section now enumerates the sql-wasm.wasm fetch alongside the three CDN script loads, re-affirming zero outbound data (`aca3809`).
+- Drop-zone help + SUPPORT.md document the real ZIP-of-CSV export format (`amount-YYYY-M.csv` / `cost-YYYY-M.csv`, `utc_date` column) (`91444c9`).
+- CONTRIBUTING.md rewritten for the split-file structure and ZIP-only uploads (`3f2b6d1`).
+- README local-install path fixed — download the repo, not a single file (`38750f1`).
+- Drift-prone test/line counts removed from README (`cfc1a86`).
+
+**Dependencies**
+- vitest 2.1.9 → 4.1.10, jsdom 25 → 30 (`da3206b`, `9b6bd00`); MIT license declared (`9b6bd00`).
+
 ## 2026-07-19 — Quality & Test Hardening
 
 **Security**
