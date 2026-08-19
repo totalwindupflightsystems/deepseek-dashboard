@@ -106,7 +106,8 @@ describe('getDailyData key filter', () => {
     expect(tuParams).toContain('keyA');
   });
 
-  it('does not apply api_key_name filter to the cost_daily merge query', () => {
+  it('does not issue the cost_daily merge query when a key filter is active', () => {
+    let costDailyIssued = false;
     globalThis.db = {
       exec: (sql) => {
         if (sql.includes('FROM token_usage')) {
@@ -114,13 +115,71 @@ describe('getDailyData key filter', () => {
             ['2026-01-01', 'deepseek-chat', 'output_tokens', 100, 0.5],
           ]);
         }
-        // cost_daily query — if key filter leaked here, the column doesn't exist
-        // and SQL would error. Assert the SQL does NOT reference api_key_name.
-        expect(sql).not.toContain('api_key_name');
+        if (sql.includes('FROM cost_daily')) {
+          costDailyIssued = true;
+        }
         return [];
       },
     };
-    // Should not throw even with a key selected (cost_daily lacks the column)
-    expect(() => getDailyData('all', 'all', 'keyA')).not.toThrow();
+    getDailyData('all', 'all', 'keyA');
+    expect(costDailyIssued).toBe(false);
+  });
+
+  it('still issues the cost_daily merge query when key filter is "all"', () => {
+    let costDailyIssued = false;
+    globalThis.db = {
+      exec: (sql) => {
+        if (sql.includes('FROM token_usage')) {
+          return makeDbResult([
+            ['2026-01-01', 'deepseek-chat', 'output_tokens', 100, 0.5],
+          ]);
+        }
+        if (sql.includes('FROM cost_daily')) {
+          costDailyIssued = true;
+          return makeDbResult([
+            ['2026-01-01', 'deepseek-chat', 99.9],
+          ]);
+        }
+        return [];
+      },
+    };
+    getDailyData('all', 'all', 'all');
+    expect(costDailyIssued).toBe(true);
+  });
+
+  it('cost KPI derives from token_usage price*amount when a key is selected (cost_csv does not pollute)', () => {
+    // Simulate: token_usage has keyA cost 0.7, but cost_daily has a global
+    // cost of 380.08 (the dogfood scenario). With a key filter, cost_daily
+    // is skipped so the KPI must reflect token_usage cost, not the csv cost.
+    const tuRows = [
+      ['2026-01-01', 'deepseek-chat', 'output_tokens', 100, 0.5],
+      ['2026-01-01', 'deepseek-chat', 'input_tokens', 200, 0.2],
+    ];
+    const cdRows = [
+      ['2026-01-01', 'deepseek-chat', 380.08],
+    ];
+    globalThis.db = {
+      exec: (sql) => {
+        if (sql.includes('FROM token_usage')) return makeDbResult(tuRows);
+        if (sql.includes('FROM cost_daily')) return makeDbResult(cdRows);
+        return [];
+      },
+    };
+
+    // key='all': cost_daily contributes → cost_csv (380.08) takes precedence
+    const daysAll = getDailyData('all', 'all', 'all');
+    const totalCostAll = daysAll.reduce((s, d) => s + (d.cost_csv || d.cost_tokens), 0);
+    expect(totalCostAll).toBeCloseTo(380.08);
+
+    // key='keyA': cost_daily merge is skipped → cost_csv stays 0, cost_tokens = 0.7
+    const daysKey = getDailyData('all', 'all', 'keyA');
+    const totalCostKey = daysKey.reduce((s, d) => s + (d.cost_csv || d.cost_tokens), 0);
+    expect(totalCostKey).toBeCloseTo(0.7);
+    // Verify the frozen-KPI bug is gone: cost changes when key changes
+    expect(totalCostKey).not.toBeCloseTo(totalCostAll);
+
+    // Also verify avg daily cost follows the same source
+    const avgDailyKey = daysKey.length > 0 ? totalCostKey / daysKey.length : 0;
+    expect(avgDailyKey).toBeCloseTo(0.7);
   });
 });

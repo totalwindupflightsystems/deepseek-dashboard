@@ -697,19 +697,28 @@ function getDailyData(period, model, key) {
     }
   }
 
-  // Merge cost_daily (cost_daily has no api_key_name column — filter by workspace/date/model only)
-  let cdWhere = 'workspace_id = ? AND utc_date >= ? AND utc_date <= ?';
-  const cdParams = [activeWsId, start, end];
-  if (model && model !== 'all') { cdWhere += ' AND model = ?'; cdParams.push(model); }
-  const cdRows = db.exec(`SELECT utc_date, model, SUM(cost) as total_cost FROM cost_daily WHERE ${cdWhere} GROUP BY utc_date, model`, cdParams);
-  if (cdRows.length) {
-    for (const row of cdRows[0].values) {
-      const [date, mdl, cost] = row;
-      if (!days[date]) days[date] = {date, cost_tokens:0, cost_csv:0, total_tokens:0, cache_hit:0, cache_miss:0,
-                                      output:0, prompt:0, requests:0, byModel:{}};
-      days[date].cost_csv += Number(cost||0);
-      if (!days[date].byModel[mdl]) days[date].byModel[mdl] = {cost:0, tokens:0, cache_hit:0, cache_miss:0, output:0, requests:0};
-      days[date].byModel[mdl].cost += Number(cost||0);
+  // Merge cost_daily — but ONLY when no key filter is active.
+  // cost_daily has no api_key_name column, so its rows cannot be attributed
+  // to a single key. Merging them under a key filter pollutes every cost
+  // aggregate (KPI Total Cost, Avg Daily Cost, spend chart, top-spend) with
+  // the unfiltered global cost. When a key IS selected, cost derives from
+  // token_usage price*amount only — the same source the per-key chart (cKey)
+  // uses. When the filter is 'all' (or empty), the merge runs as before so
+  // cost-only exports (where token_usage may be empty) still get a cost figure.
+  if (!key || key === 'all') {
+    let cdWhere = 'workspace_id = ? AND utc_date >= ? AND utc_date <= ?';
+    const cdParams = [activeWsId, start, end];
+    if (model && model !== 'all') { cdWhere += ' AND model = ?'; cdParams.push(model); }
+    const cdRows = db.exec(`SELECT utc_date, model, SUM(cost) as total_cost FROM cost_daily WHERE ${cdWhere} GROUP BY utc_date, model`, cdParams);
+    if (cdRows.length) {
+      for (const row of cdRows[0].values) {
+        const [date, mdl, cost] = row;
+        if (!days[date]) days[date] = {date, cost_tokens:0, cost_csv:0, total_tokens:0, cache_hit:0, cache_miss:0,
+                                        output:0, prompt:0, requests:0, byModel:{}};
+        days[date].cost_csv += Number(cost||0);
+        if (!days[date].byModel[mdl]) days[date].byModel[mdl] = {cost:0, tokens:0, cache_hit:0, cache_miss:0, output:0, requests:0};
+        days[date].byModel[mdl].cost += Number(cost||0);
+      }
     }
   }
 
