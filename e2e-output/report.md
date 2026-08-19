@@ -1,8 +1,8 @@
 # E2E Report — DeepSeek Dashboard
 
-**Run:** T164 (window T159-164, window-END)  
-**Timestamp:** 2026-08-18T13:44Z  
-**URL:** https://totalwindupflightsystems.github.io/deepseek-dashboard/  
+**Run:** T170 (window T169-174, first available tick — T169 was productive GAP-035)
+**Timestamp:** 2026-08-19T11:30Z
+**URL:** https://totalwindupflightsystems.github.io/deepseek-dashboard/
 **HTTP Status:** 200 (page loaded successfully)
 
 ---
@@ -32,28 +32,28 @@ All structural checks match known-good baseline.
 
 | Resource | Status |
 |----------|--------|
-| jszip.min.js | 200 |
-| chart.umd.min.js | 200 |
-| sql-wasm.js | 200 |
-| sql-wasm.wasm | 200 |
+| jszip.min.js (cdnjs 3.10.1) | 200 (typeof JSZip = function) |
+| chart.umd.min.js (jsdelivr 4.5.1) | 200 (typeof Chart = function) |
+| sql-wasm.js (jsdelivr 1.14.1) | 200 (typeof initSqlJs = function) |
+| sql-wasm.wasm | loaded (SQL initialized to object via locateFile) |
 
-All 4 CDN resources HTTP 200. Chart.js 4.5.1 + JSZip 3.10.1 + sql.js present.
+All 4 CDN resources OK. Chart.js 4.5.1 + JSZip 3.10.1 + sql.js present.
 
 ## UI Checklist
 
 | Check | Expected | Observed | Pass |
 |-------|----------|----------|------|
-| Header text | "DeepSeek Dashboard Client-Side" | "DeepSeek Dashboard Client-Side" | ✅ |
-| Theme toggle button | ☀ or 🌙 | ☀ | ✅ |
-| Workspace select | Present | Present (value: msqxza8rtddz31) | ✅ |
+| Header text | "DeepSeek Dashboard Client-Side" | Present | ✅ |
+| Theme toggle button | ☀ or 🌙 | ☀ (dark) | ✅ |
+| Workspace select | Present | Present (Default) | ✅ |
 | Drop zone present | .drop-zone present | Present | ✅ |
-| Drop zone text | "Drop DeepSeek usage ZIP here..." | Present | ✅ |
+| Drop zone text | "Drop DeepSeek usage ZIP here" | Present | ✅ |
 | Export CSV button | Present | true | ✅ |
 | Export All Raw button | Present | true | ✅ |
-| Pricing Calculator button | "💰 Pricing Calculator" | true | ✅ |
+| Pricing Calculator button | Present | true | ✅ |
 | Anomaly Detection card | Present | true | ✅ |
 | Rate Limit Monitor card | Present | true | ✅ |
-| Raw Data section | Present | true | ✅ |
+| Raw Data section | Present (with search box) | Present | ✅ |
 | GitHub link | Present | true | ✅ |
 | Empty state text | "No data yet" | true | ✅ |
 | 6 canvas elements | 6 | 6 | ✅ |
@@ -61,9 +61,13 @@ All 4 CDN resources HTTP 200. Chart.js 4.5.1 + JSZip 3.10.1 + sql.js present.
 | 21 button elements | 21 | 21 | ✅ |
 | 0 file inputs | 0 | 0 | ✅ |
 | initSqlJs function | "function" | "function" | ✅ |
-| SQL object | "object" | "object" | ✅ |
+| SQL object | "object" (bare identifier) | "object" | ✅ |
 | sqlite3 undefined | "undefined" | "undefined" | ✅ |
 | No [data-error] | false | false | ✅ |
+
+Note: `window.SQL` is undefined — SQL is a module-level `let` (global lexical
+binding, not a window property); bare `SQL` is `"object"`. Same check shape as
+T164 baseline.
 
 ## Interactive Tests
 
@@ -74,7 +78,7 @@ All 4 CDN resources HTTP 200. Chart.js 4.5.1 + JSZip 3.10.1 + sql.js present.
 - **Result: PASS** (dark → light → dark cycle confirmed)
 
 ### Anomaly Card Toggle
-- Selector: `.anomaly-toggle` — found
+- Selector: `#anomalyToggle` — found
 - After click 1: `.anomaly-body` display = "none" (collapsed)
 - After click 2: `.anomaly-body` display = "block" (expanded)
 - **Result: PASS** (block → none → block cycle confirmed)
@@ -89,16 +93,19 @@ All 4 CDN resources HTTP 200. Chart.js 4.5.1 + JSZip 3.10.1 + sql.js present.
 
 | File | Dimensions | Size | MD5 | Verified |
 |------|-----------|------|-----|----------|
-| 01-dashboard.png | 1265x3541 | 290,687 bytes | ef0c08e65067913941d212bcd1adf408 | VALID |
-| 02-scrolled.png | 1265x3541 | 290,687 bytes | ef0c08e65067913941d212bcd1adf408 | VALID |
+| 01-dashboard-t170.png | 1009x3172 | — | 80dd18c334b7438f9ba2517649afbffc | VALID (PNG) |
 
-**Note:** Both screenshots are byte-identical (same MD5). `captureBeyondViewport: true` captures the entire page content regardless of scroll position, so scrolling to `document.body.scrollHeight` produced the same full-page capture. This is a benign behavior — the page has no dynamically lazy-loaded content below the fold, so the full-page capture already includes everything. Both are valid PNGs, verified by signature/IHDR/CRC/zlib/IEND checks.
+Full-page capture (captureBeyondViewport). Vision QA confirms: header, drop
+zone, filters, all 7 chart cards, anomaly + rate-limit cards, raw-data section
+render correctly; blank chart areas are the expected no-data state; no visual
+breakage or error overlays.
 
 ## Benign Notes
 
-1. **h3 count drift:** Page has 11 `<h3>` elements (vs older 6-card baseline). The page renders 7 chart sections + nested h3s inside Anomaly/Rate Limit collapsibles + Raw Data section = 11 total. The 6-canvas structural check still passes. This is a documented benign note (per known-good baseline instructions). Chart-card count: 7.
-
-2. **Screenshots identical:** Both 01-dashboard.png and 02-scrolled.png are byte-identical due to `captureBeyondViewport` full-page capture. Benign.
+1. **h3 count = 11** — same as T164 (7 chart sections + nested h3s in
+   collapsibles + Raw Data). Documented benign.
+2. **Single screenshot this run** (T164 produced 2 byte-identical captures due
+   to captureBeyondViewport; the scroll capture adds no information). Benign.
 
 ---
 
@@ -111,11 +118,10 @@ All 33 checks passed:
 - 1 console check ✅
 - 5 UI element presence checks ✅
 
-No failures. 2 benign notes (h3 count drift, identical screenshots) documented per known-good baseline guidance.
+No failures. 2 benign notes documented.
 
 ---
 
 **Files written:**
 - `/home/kara/deepseek-dashboard/e2e-output/report.md` (this file)
-- `/home/kara/deepseek-dashboard/e2e-output/screenshots/01-dashboard.png` (md5: ef0c08e65067913941d212bcd1adf408, 290687 bytes)
-- `/home/kara/deepseek-dashboard/e2e-output/screenshots/02-scrolled.png` (md5: ef0c08e65067913941d212bcd1adf408, 290687 bytes)
+- `/home/kara/deepseek-dashboard/e2e-output/screenshots/01-dashboard-t170.png` (md5: 80dd18c334b7438f9ba2517649afbffc)
