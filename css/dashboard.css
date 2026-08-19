@@ -81,6 +81,13 @@ header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-bright); lett
 .drop-zone .drop-help { font-size: 0.7rem; color: var(--text-dim); opacity: 0.85; max-width: 520px; margin: 0 auto; line-height: 1.35; }
 .drop-zone.processing { border-color: var(--orange); background: rgba(210,153,29,0.05); pointer-events: none; }
 
+/* Progress bar (DSD-GAP-034) */
+.drop-progress { display: none; max-width: 360px; margin: 8px auto 4px; }
+.drop-zone.processing .drop-progress { display: block; }
+.drop-progress-track { height: 6px; background: var(--bg-input); border-radius: 3px; overflow: hidden; }
+.drop-progress-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.15s ease; width: 0%; }
+.drop-progress-label { display: block; font-size: 0.72rem; color: var(--text-dim); margin-top: 3px; }
+
 /* No workspace state */
 .no-ws { text-align: center; padding: 48px 24px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; }
 .no-ws .no-ws-title { font-size: 1.1rem; font-weight: 600; color: var(--text-bright); margin-bottom: 4px; }

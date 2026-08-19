@@ -399,8 +399,61 @@ function parseCSV(text) {
   return rows;
 }
 
+// -- Progress UI helpers (DSD-GAP-034) --
+// Returns a progress callback for _processSingleFile that updates the drop
+// zone title and a progress bar element with live row counts.
+function makeProgressUpdater(dz, fileTotal, fileIndex, fileName) {
+  const titleEl = dz.querySelector('.drop-title');
+  const barEl = dz.querySelector('.drop-progress-bar');
+  const labelEl = dz.querySelector('.drop-progress-label');
+  const idx = (fileIndex || 0) + 1;
+
+  return function(upd) {
+    const phase = upd.phase || '';
+    const name = fileName || upd.fileName || '';
+
+    if (phase === 'parsing') {
+      titleEl.textContent = fileTotal > 1
+        ? `Parsing ${name} (${idx}/${fileTotal})…`
+        : `Parsing ${name}…`;
+      if (barEl) barEl.style.width = '0%';
+      if (labelEl) labelEl.textContent = '';
+    } else if (phase === 'inserting') {
+      const pct = upd.rowsTotal > 0 ? Math.round(upd.rowsDone / upd.rowsTotal * 100) : 0;
+      if (fileTotal > 1) {
+        titleEl.textContent = `Processing ${name} (${idx}/${fileTotal}) — ${pct}%`;
+      } else {
+        titleEl.textContent = `Processing — ${pct}%`;
+      }
+      if (barEl) barEl.style.width = pct + '%';
+      if (labelEl) labelEl.textContent = `${fmtNum(upd.rowsDone)} / ${fmtNum(upd.rowsTotal)} rows`;
+    } else if (phase === 'saving') {
+      if (fileTotal > 1) {
+        titleEl.textContent = `Saving ${name} (${idx}/${fileTotal})…`;
+      } else {
+        titleEl.textContent = 'Saving to storage…';
+      }
+      if (barEl) barEl.style.width = '100%';
+      if (labelEl) labelEl.textContent = '';
+    }
+  };
+}
+
+function hideProgressBar(dz) {
+  const barEl = dz.querySelector('.drop-progress-bar');
+  const labelEl = dz.querySelector('.drop-progress-label');
+  if (barEl) barEl.style.width = '0%';
+  if (labelEl) labelEl.textContent = '';
+}
+
 // -- Core file processing (no UI, no refreshAll) --
-async function _processSingleFile(file) {
+// progressCb({ phase, fileIndex, fileTotal, fileName, rowsDone, rowsTotal })
+//   is an optional callback for UI progress reporting (DSD-GAP-034).
+async function _processSingleFile(file, progressCb) {
+  const cb = typeof progressCb === 'function' ? progressCb : () => {};
+
+  // -- Phase 1: parse ZIP entries --
+  cb({ phase: 'parsing', fileName: file.name, rowsDone: 0, rowsTotal: 0 });
   const zip = await JSZip.loadAsync(file);
   let amountRows = [], costRows = [];
 
@@ -457,49 +510,70 @@ async function _processSingleFile(file) {
   const mode = hasExisting ? 'replace' : 'insert';
   let rowsReplaced = 0;
 
-  if (hasExisting) {
-    // Count existing rows before deleting (SQL.js DELETE returns no rows)
-    const cntBefore = db.exec(
-      `SELECT COUNT(*) as cnt FROM token_usage WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`,
-      [activeWsId, dateMin, dateMax]);
-    rowsReplaced = (cntBefore.length && cntBefore[0].values.length ? cntBefore[0].values[0][0] : 0);
+  // -- Phase 2: insert in a single transaction (DSD-GAP-034) --
+  // Wrapping all inserts + deletes in BEGIN/COMMIT gives a ~10-100x speedup
+  // for large files because sql.js skips the implicit per-statement commit
+  // (which flushes the full in-memory DB journal on every row).
+  const totalRows = amountRows.length + costRows.length;
+  cb({ phase: 'inserting', fileName: file.name, rowsDone: 0, rowsTotal: totalRows });
+  let rowsDone = 0;
 
-    // Delete old data for the overlapping date range
-    db.exec(`DELETE FROM token_usage WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`, [activeWsId, dateMin, dateMax]);
-    db.exec(`DELETE FROM cost_daily WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`, [activeWsId, dateMin, dateMax]);
-    // Remove old upload records that overlap with this date range
-    db.run(`DELETE FROM uploads WHERE workspace_id = ? AND NOT (date_max < ? OR date_min > ?)`,
-      [activeWsId, dateMin, dateMax]);
+  db.run('BEGIN');
+  let tokenCount = 0, costCount = 0;
+  try {
+    if (hasExisting) {
+      // Count existing rows before deleting (SQL.js DELETE returns no rows)
+      const cntBefore = db.exec(
+        `SELECT COUNT(*) as cnt FROM token_usage WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`,
+        [activeWsId, dateMin, dateMax]);
+      rowsReplaced = (cntBefore.length && cntBefore[0].values.length ? cntBefore[0].values[0][0] : 0);
+
+      // Delete old data for the overlapping date range
+      db.exec(`DELETE FROM token_usage WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`, [activeWsId, dateMin, dateMax]);
+      db.exec(`DELETE FROM cost_daily WHERE workspace_id = ? AND utc_date >= ? AND utc_date <= ?`, [activeWsId, dateMin, dateMax]);
+      // Remove old upload records that overlap with this date range
+      db.run(`DELETE FROM uploads WHERE workspace_id = ? AND NOT (date_max < ? OR date_min > ?)`,
+        [activeWsId, dateMin, dateMax]);
+    }
+
+    // Insert token rows
+    const stmtTok = db.prepare('INSERT INTO token_usage (workspace_id, utc_date, model, api_key_name, type, price, amount, upload_id) VALUES (?,?,?,?,?,?,?,?)');
+    for (const r of amountRows) {
+      if (!r.utc_date || !r.model || !r.type || r.type === 'type') continue;
+      stmtTok.run([activeWsId, r.utc_date, r.model, r.api_key_name||'', r.type,
+                   parseFloat(r.price)||0, parseFloat(r.amount)||0, uploadId]);
+      tokenCount++;
+      rowsDone++;
+      if ((rowsDone & 511) === 0) cb({ phase: 'inserting', fileName: file.name, rowsDone, rowsTotal: totalRows });
+    }
+    stmtTok.free();
+
+    // Insert cost rows
+    const stmtCost = db.prepare('INSERT INTO cost_daily (workspace_id, utc_date, model, cost, currency, upload_id) VALUES (?,?,?,?,?,?)');
+    for (const r of costRows) {
+      if (!r.utc_date || !r.model) continue;
+      stmtCost.run([activeWsId, r.utc_date, r.model, parseFloat(r.cost)||0, r.currency||'USD', uploadId]);
+      costCount++;
+      rowsDone++;
+      if ((rowsDone & 511) === 0) cb({ phase: 'inserting', fileName: file.name, rowsDone, rowsTotal: totalRows });
+    }
+    stmtCost.free();
+
+    // Record upload
+    db.run('INSERT INTO uploads (id, workspace_id, filename, uploaded_at, mode, rows_replaced, rows_added, date_min, date_max) VALUES (?,?,?,?,?,?,?,?,?)',
+      [uploadId, activeWsId, file.name, new Date().toISOString(), mode, rowsReplaced, tokenCount+costCount, dateMin, dateMax]);
+
+    // Update workspace
+    db.run('UPDATE workspaces SET last_upload_at = ? WHERE id = ?', [new Date().toISOString(), activeWsId]);
+
+    db.run('COMMIT');
+  } catch(e) {
+    // Rollback on error so partial inserts don't corrupt the DB
+    try { db.run('ROLLBACK'); } catch(_) {}
+    throw e;
   }
 
-  // Insert token rows
-  const stmtTok = db.prepare('INSERT INTO token_usage (workspace_id, utc_date, model, api_key_name, type, price, amount, upload_id) VALUES (?,?,?,?,?,?,?,?)');
-  let tokenCount = 0;
-  for (const r of amountRows) {
-    if (!r.utc_date || !r.model || !r.type || r.type === 'type') continue;
-    stmtTok.run([activeWsId, r.utc_date, r.model, r.api_key_name||'', r.type,
-                 parseFloat(r.price)||0, parseFloat(r.amount)||0, uploadId]);
-    tokenCount++;
-  }
-  stmtTok.free();
-
-  // Insert cost rows
-  const stmtCost = db.prepare('INSERT INTO cost_daily (workspace_id, utc_date, model, cost, currency, upload_id) VALUES (?,?,?,?,?,?)');
-  let costCount = 0;
-  for (const r of costRows) {
-    if (!r.utc_date || !r.model) continue;
-    stmtCost.run([activeWsId, r.utc_date, r.model, parseFloat(r.cost)||0, r.currency||'USD', uploadId]);
-    costCount++;
-  }
-  stmtCost.free();
-
-  // Record upload
-  db.run('INSERT INTO uploads (id, workspace_id, filename, uploaded_at, mode, rows_replaced, rows_added, date_min, date_max) VALUES (?,?,?,?,?,?,?,?,?)',
-    [uploadId, activeWsId, file.name, new Date().toISOString(), mode, rowsReplaced, tokenCount+costCount, dateMin, dateMax]);
-
-  // Update workspace
-  db.run('UPDATE workspaces SET last_upload_at = ? WHERE id = ?', [new Date().toISOString(), activeWsId]);
-
+  cb({ phase: 'saving', fileName: file.name, rowsDone: totalRows, rowsTotal: totalRows });
   await saveDB();
   return { success: true, message: `${mode === 'replace' ? 'Updated' : 'Added'} ${fmtNum(tokenCount)} rows · ${dateMin} → ${dateMax}`, file: file.name };
 }
@@ -513,10 +587,9 @@ async function handleUpload(file) {
 
   const dz = document.getElementById('dropZone');
   dz.classList.add('processing');
-  dz.querySelector('.drop-title').textContent = 'Processing...';
 
   try {
-    const result = await _processSingleFile(file);
+    const result = await _processSingleFile(file, makeProgressUpdater(dz, 1));
     toast(result.message);
   } catch(e) {
     toast('Error: ' + e.message, true);
@@ -525,6 +598,7 @@ async function handleUpload(file) {
 
   dz.classList.remove('processing');
   dz.querySelector('.drop-title').textContent = 'Drop DeepSeek usage ZIP here';
+  hideProgressBar(dz);
   await refreshAll();
 }
 
@@ -560,10 +634,10 @@ async function handleMultipleUpload(files) {
 
   for (let i = 0; i < fileArray.length; i++) {
     const file = fileArray[i];
-    dz.querySelector('.drop-title').textContent = `Processing file ${i+1} of ${fileArray.length}: ${file.name}`;
+    const progressCb = makeProgressUpdater(dz, fileArray.length, i, file.name);
 
     try {
-      const result = await _processSingleFile(file);
+      const result = await _processSingleFile(file, progressCb);
       toast(result.message);
       successCount++;
     } catch(e) {
@@ -576,6 +650,7 @@ async function handleMultipleUpload(files) {
 
   dz.classList.remove('processing');
   dz.querySelector('.drop-title').textContent = 'Drop DeepSeek usage ZIP here';
+  hideProgressBar(dz);
 
   // Report any non-ZIP files that were silently skipped during the filter
   if (skippedNonZip.length > 0) {
