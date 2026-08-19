@@ -147,3 +147,61 @@ describe('handleMultipleUpload mixed drop (DSD-GAP-029)', () => {
     expect(finalText).toMatch(/No \.zip files found/);
   });
 });
+
+// DSD-GAP-035: invalid-utc_date rows silently dropped by the defense-in-depth
+// filter must be surfaced to the user via the upload toast message.
+describe('handleMultipleUpload dropped-row reporting (DSD-GAP-035)', () => {
+  beforeEach(() => {
+    window.JSZip = JSZip;
+    globalThis.JSZip = JSZip;
+    globalThis.activeWsId = 'ws-test';
+
+    globalThis.db = {
+      exec: () => [],
+      run: () => {},
+      prepare: () => ({ run: () => {}, free: () => {} }),
+      export: () => new Uint8Array(0),
+    };
+
+    window.saveDB = async () => {};
+    globalThis.saveDB = window.saveDB;
+    window.refreshAll = async () => {};
+    globalThis.refreshAll = window.refreshAll;
+
+    window.toast = function(msg, warn) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast show' + (warn ? ' warn' : '');
+    };
+
+    toastEl().textContent = '';
+    toastEl().className = 'toast';
+  });
+
+  it('ZIP with 1 valid + 1 malformed-date amount row surfaces a dropped count in the toast', async () => {
+    const csv = [
+      'user_id,utc_date,model,api_key_name,api_key,type,price,amount',
+      'u1,2026-07-01,deepseek-v4-pro,k1,sk-fakekey,completion,0.5,100',
+      'u2,not-a-date,deepseek-v4-flash,k2,sk-fakekey,completion,0.1,200',
+    ].join('\n') + '\n';
+
+    const bytes = await buildZip({ 'amount-2026-7.csv': csv });
+    const file = makeFile('mixed-dates.zip', bytes);
+
+    await handleMultipleUpload([file]);
+
+    const finalText = toastEl().textContent;
+    // PASS criterion: a dropped-row count is visible in the toast
+    expect(finalText).toMatch(/1 dropped — invalid utc_date/);
+  });
+
+  it('ZIP with all-valid dates does not show a dropped count', async () => {
+    const bytes = await buildZip({ 'amount-2026-07.csv': SYNTHETIC_AMOUNT });
+    const file = makeFile('clean.zip', bytes);
+
+    await handleMultipleUpload([file]);
+
+    const finalText = toastEl().textContent;
+    expect(finalText).not.toMatch(/dropped/);
+  });
+});

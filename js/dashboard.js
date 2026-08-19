@@ -486,12 +486,14 @@ async function _processSingleFile(file, progressCb) {
   // YYYY-MM-DD string after normalization. CSV data is user-uploaded and
   // arbitrary strings (e.g. HTML payloads) must not survive into sql.js.
   const _dateRe = /^\d{4}-\d{2}-\d{2}$/;
+  let droppedCount = 0;
   for (let i = amountRows.length - 1; i >= 0; i--) {
-    if (amountRows[i].utc_date && !_dateRe.test(amountRows[i].utc_date)) amountRows.splice(i, 1);
+    if (amountRows[i].utc_date && !_dateRe.test(amountRows[i].utc_date)) { amountRows.splice(i, 1); droppedCount++; }
   }
   for (let i = costRows.length - 1; i >= 0; i--) {
-    if (costRows[i].utc_date && !_dateRe.test(costRows[i].utc_date)) costRows.splice(i, 1);
+    if (costRows[i].utc_date && !_dateRe.test(costRows[i].utc_date)) { costRows.splice(i, 1); droppedCount++; }
   }
+  if (droppedCount > 0) console.info(`[upload] dropped ${droppedCount} row(s) with invalid utc_date`);
 
   // Detect date range
   const dates = new Set();
@@ -575,7 +577,9 @@ async function _processSingleFile(file, progressCb) {
 
   cb({ phase: 'saving', fileName: file.name, rowsDone: totalRows, rowsTotal: totalRows });
   await saveDB();
-  return { success: true, message: `${mode === 'replace' ? 'Updated' : 'Added'} ${fmtNum(tokenCount)} rows · ${dateMin} → ${dateMax}`, file: file.name };
+  let msg = `${mode === 'replace' ? 'Updated' : 'Added'} ${fmtNum(tokenCount)} rows · ${dateMin} → ${dateMax}`;
+  if (droppedCount > 0) msg += ` (${droppedCount} dropped — invalid utc_date)`;
+  return { success: true, message: msg, file: file.name, dropped: droppedCount };
 }
 
 // -- Upload Processing (single file, backward compatible) --
