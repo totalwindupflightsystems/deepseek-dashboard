@@ -1588,6 +1588,25 @@ function _updateVisibleRows(vs) {
 }
 
 // -- renderTable --
+
+// DSD-GAP-033: Client-side search filter over loaded rows.
+// Filters the in-memory rows array by a case-insensitive substring match
+// against utc_date (r[0]), model (r[1]), api_key_name (r[2]), and type
+// (r[3], including its human-readable label from formatType).
+// Empty/whitespace term returns all rows unchanged.
+function filterRowsBySearch(rows, term) {
+  const q = (term || '').trim().toLowerCase();
+  if (!q) return rows;
+  return rows.filter(r => {
+    const date = String(r[0] || '').toLowerCase();
+    const model = String(r[1] || '').toLowerCase();
+    const key = String(r[2] || '').toLowerCase();
+    const type = String(r[3] || '').toLowerCase();
+    const typeLabel = formatType(r[3]).toLowerCase();
+    return date.includes(q) || model.includes(q) || key.includes(q) || type.includes(q) || typeLabel.includes(q);
+  });
+}
+
 function renderTable(days, modelFilter, keyFilter) {
   if (!activeWsId) return;
 
@@ -1605,8 +1624,14 @@ function renderTable(days, modelFilter, keyFilter) {
 
   // Fetch with row cap for memory safety — virtual scroll renders windows from this array
   const r = db.exec(`SELECT utc_date, model, api_key_name, type, amount, price, (price*amount) as cost FROM token_usage WHERE ${where} ORDER BY utc_date DESC, model, type LIMIT ?`, [...params, TABLE_ROW_LIMIT]);
-  const rows = r.length ? r[0].values : [];
+  let rows = r.length ? r[0].values : [];
   const capped = totalCount > TABLE_ROW_LIMIT;
+
+  // DSD-GAP-033: Apply client-side search filter over the fetched rows
+  const searchTerm = document.getElementById('rawSearch')?.value || '';
+  const isSearching = searchTerm.trim().length > 0;
+  rows = filterRowsBySearch(rows, searchTerm);
+  const filteredCount = rows.length;
 
   const rowCountEl = document.getElementById('rowCount');
   const table = document.getElementById('dataTable');
@@ -1629,7 +1654,14 @@ function renderTable(days, modelFilter, keyFilter) {
     return;
   }
 
-  rowCountEl.textContent = `(${rows.length} rows${capped ? ', capped at ' + TABLE_ROW_LIMIT.toLocaleString() + ' of ' + totalCount.toLocaleString() : ''})`;
+  rowCountEl.textContent = (() => {
+    if (isSearching) {
+      // DSD-GAP-033: show filtered count vs total fetched
+      const capNote = capped ? ' of ' + TABLE_ROW_LIMIT.toLocaleString() : '';
+      return `(${filteredCount} of ${totalCount.toLocaleString()} rows${capNote})`;
+    }
+    return `(${rows.length} rows${capped ? ', capped at ' + TABLE_ROW_LIMIT.toLocaleString() + ' of ' + totalCount.toLocaleString() : ''})`;
+  })();
 
   if (rows.length > 500) {
     // Use virtual scrolling for large datasets
@@ -1749,6 +1781,18 @@ const _debouncedRefresh = debounce(refreshAll, DEBOUNCE_MS);
 ['periodSelect','modelSelect','keySelect','granularitySelect'].forEach(id => {
   document.getElementById(id)?.addEventListener('change', _debouncedRefresh);
 });
+
+// DSD-GAP-033: Debounced table-only re-render on search input.
+// Reads current filter values and re-renders just the table (no db refetch
+// beyond the table's own SELECT — the search filters the fetched rows pool).
+const _debouncedTableSearch = debounce(() => {
+  if (!activeWsId) return;
+  const modelFilter = document.getElementById('modelSelect')?.value || 'all';
+  const keyFilter = document.getElementById('keySelect')?.value || 'all';
+  const days = _currentDays;
+  renderTable(days, modelFilter, keyFilter);
+}, DEBOUNCE_MS);
+document.getElementById('rawSearch')?.addEventListener('input', _debouncedTableSearch);
 // Persist granularity preference
 document.getElementById('granularitySelect')?.addEventListener('change', function() {
   try { localStorage.setItem(GRANULARITY_LS_KEY, this.value); } catch(e) {}

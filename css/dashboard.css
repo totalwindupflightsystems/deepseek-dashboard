@@ -147,6 +147,10 @@ header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-bright); lett
 .data-section { margin-top: 20px; }
 .data-section h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
 .data-section .row-count { font-size: 0.72rem; color: var(--text-dim); font-weight: 400; }
+.raw-search-wrap { margin-bottom: 10px; }
+.raw-search { background: var(--bg-input); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; font-size: 0.82rem; font-family: var(--font); width: 100%; max-width: 320px; box-sizing: border-box; }
+.raw-search:focus { outline: none; border-color: var(--accent); }
+.raw-search::placeholder { color: var(--text-dim); }
 .table-wrap { position: relative; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); max-height: 400px; overflow-y: auto; }
 .table-wrap::after {
   content: '';

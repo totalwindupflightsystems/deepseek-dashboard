@@ -63,6 +63,9 @@ const funcNames = [
   'getDailyData',
   'exportRowToCsv',
   'renderTopDaysHtml',
+  'filterRowsBySearch',
+  'renderTable',
+  'formatType',
 ];
 
 for (const name of funcNames) {
