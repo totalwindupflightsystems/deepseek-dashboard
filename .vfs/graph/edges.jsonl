@@ -18,3 +18,11 @@
 {"from":"tests/uploadToast.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
 {"from":"tests/uploadToast.test.js","to":"pkg:jszip","rel":"imports","provenance":"ast_exact","confidence":1.0}
 {"from":"tests/ratePanelXss.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/uploadProgress.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/uploadProgress.test.js","to":"pkg:jszip","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/timing-harness.js","to":"pkg:jsdom","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/timing-harness.js","to":"pkg:fs","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/timing-harness.js","to":"pkg:path","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/timing-harness.js","to":"pkg:sql.js","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/timing-harness.js","to":"pkg:jszip","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/searchFilter.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
