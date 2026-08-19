@@ -69,7 +69,7 @@ Just open the link — no install, no signup, nothing. Your data stays in your b
 
 ## How to Verify the Code
 
-It's three files. Open `index.html`, `js/dashboard.js`, and `css/dashboard.css` in any text editor. Read them. No obfuscation, no minification, no hidden requests. The application is ~2,596 lines of vanilla HTML/CSS/JS with an 85-test Vitest suite (11 test files).
+It's three files. Open `index.html`, `js/dashboard.js`, and `css/dashboard.css` in any text editor. Read them. No obfuscation, no minification, no hidden requests. The application is vanilla HTML/CSS/JS with a Vitest unit-test suite — run `npm test` to verify it locally.
 
 ## Tech Stack
 
@@ -78,7 +78,7 @@ It's three files. Open `index.html`, `js/dashboard.js`, and `css/dashboard.css` 
 - **sql.js 1.14.1** — SQLite persistence via IndexedDB (CDN)
 - **Vanilla JS** — No framework, no build step, no bundler (npm used for vitest + jsdom testing only)
 - **CSS Grid + Flexbox** — Responsive layout, no CSS framework
-- **Testing** — vitest 4.1.10 + jsdom 29.1.1, 11 test files, 85 tests
+- **Testing** — Vitest + jsdom unit-test suite (run `npm test`), no runtime dependencies beyond the three CDN scripts
 - **CI/CD** — GitHub Actions (vitest + html-validate + deploy-check)
 
 ## Data Format
