@@ -1,10 +1,10 @@
 # E2E Report — DeepSeek Dashboard
 
-**Run:** T178 (window T175-180, second tick in window — T175-177 were productive gap/doc ticks)
-**Timestamp:** 2026-08-19T19:42Z
+**Run:** T183 (window T181-186 — first available tick in window; T179-182 were idle audit ticks)
+**Timestamp:** 2026-08-20T06:05Z
 **URL:** https://totalwindupflightsystems.github.io/deepseek-dashboard/
 **HTTP Status:** 200 (page loaded successfully)
-**Under test:** live Pages build of d120680 (sql.js CDN 1.14.1 → 1.14.2 + recomputed SRI)
+**Under test:** live Pages build of d6335eb (board chore; code head d120680 — sql.js 1.14.2 CDN pin), byte-identical to origin/main (md5 b1445754)
 
 ---
 
@@ -15,7 +15,7 @@
   "title": "DeepSeek Usage Dashboard",
   "ready": "complete",
   "sqlJs": "function",
-  "SQL": "initialized",
+  "SQL": "object (initialized)",
   "canvases": 6,
   "selects": 6,
   "buttons": 21,
@@ -27,18 +27,20 @@
 }
 ```
 
-All structural checks match the T170 known-good baseline.
+All structural checks match the T178 known-good baseline.
 
 ## CDN Resources
 
 | Resource | Status |
 |----------|--------|
-| jszip.min.js (cdnjs 3.10.1) | 200 (typeof JSZip = function) |
-| chart.umd.min.js (jsdelivr 4.5.1) | 200 (typeof Chart = function) |
-| sql-wasm.js (jsdelivr **1.14.2**) | 200 (typeof initSqlJs = function, SRI sha384 matches served bytes) |
-| sql-wasm.wasm | loaded (SQL initialized to object — version bump live-verified) |
+| jszip.min.js (cdnjs 3.10.1) | loaded (typeof JSZip = function, SRI attr present) |
+| chart.umd.min.js (jsdelivr 4.5.1) | 200 (typeof Chart = function, SRI attr present) |
+| sql-wasm.js (jsdelivr 1.14.2) | 200 (typeof initSqlJs = function, SRI attr present) |
+| sql-wasm.wasm | loaded (SQL initialized to object) |
 
-All 4 CDN resources OK. **sql.js 1.14.2 is the change under test this tick (DSD-GAP-038) — wasm initializes cleanly, no console errors.**
+All 4 CDN resources OK. All 3 script tags carry `integrity` attrs; since all three
+libraries executed (typeof checks pass), the browser cryptographically verified
+each SRI hash against served bytes at load time.
 
 ## UI Checklist
 
@@ -71,8 +73,8 @@ All 4 CDN resources OK. **sql.js 1.14.2 is the change under test this tick (DSD-
 
 ## Screenshot
 
-`screenshots/t178-e2e.png` — dark theme, empty state, all sections rendered; vision-verified (no visual breakage, no overlap, correct styling).
+`screenshots/t183-e2e.png` — dark theme, empty state, all sections rendered; vision-verified (no visual breakage, no overlap, correct styling).
 
 ## Verdict
 
-**PASS — 19/19 checks** (structural 11/11, CDN 4/4, UI 16/16, interactive 3/3). Live site serves sql.js 1.14.2 with valid SRI. No regressions from the CDN bump.
+**PASS — 19/19 checks** (structural 11/11, CDN 4/4, UI 16/16, interactive 3/3). Live site byte-identical to origin/main (md5 b1445754), no regressions since T178. Next due ~T188+.
