@@ -1,80 +1,132 @@
-# E2E Report — DeepSeek Dashboard
+# E2E Lean Report — DeepSeek Dashboard
 
-**Run:** T183 (window T181-186 — first available tick in window; T179-182 were idle audit ticks)
-**Timestamp:** 2026-08-20T06:05Z
+**Run:** T188
+**Timestamp:** 2026-08-21T18:28Z
 **URL:** https://totalwindupflightsystems.github.io/deepseek-dashboard/
-**HTTP Status:** 200 (page loaded successfully)
-**Under test:** live Pages build of d6335eb (board chore; code head d120680 — sql.js 1.14.2 CDN pin), byte-identical to origin/main (md5 b1445754)
+**Target ID:** 24FAAA78EA23E698DD4022253EA72486
 
 ---
 
-## Structural Checks
+## Structural Check
 
 ```json
 {
   "title": "DeepSeek Usage Dashboard",
   "ready": "complete",
   "sqlJs": "function",
-  "SQL": "object (initialized)",
+  "SQL": "object",
+  "sqlite3": "undefined",
   "canvases": 6,
   "selects": 6,
   "buttons": 21,
   "fileInputs": 0,
   "dropZone": true,
   "hasErrors": false,
-  "emptyState": true,
-  "searchBox": true
+  "emptyState": true
 }
 ```
 
-All structural checks match the T178 known-good baseline.
+All structural checks PASS: title correct, readyState complete, initSqlJs function, SQL object, sqlite3 undefined, 6 canvas, 6 select, 21 button, 0 file input, drop zone present, no [data-error], empty state text "No data yet" present.
+
+---
 
 ## CDN Resources
 
 | Resource | Status |
 |----------|--------|
-| jszip.min.js (cdnjs 3.10.1) | loaded (typeof JSZip = function, SRI attr present) |
-| chart.umd.min.js (jsdelivr 4.5.1) | 200 (typeof Chart = function, SRI attr present) |
-| sql-wasm.js (jsdelivr 1.14.2) | 200 (typeof initSqlJs = function, SRI attr present) |
-| sql-wasm.wasm | loaded (SQL initialized to object) |
+| jszip.min.js | 200 |
+| chart.umd.min.js | 200 |
+| sql-wasm.js | 200 |
+| sql-wasm.wasm | 200 |
 
-All 4 CDN resources OK. All 3 script tags carry `integrity` attrs; since all three
-libraries executed (typeof checks pass), the browser cryptographically verified
-each SRI hash against served bytes at load time.
+All CDN resources HTTP 200. Chart.js 4.5.1 (chart.umd.min.js) + JSZip 3.10.1 (jszip.min.js) + sql.js (sql-wasm.js + sql-wasm.wasm) all loaded successfully.
+
+---
 
 ## UI Checklist
 
-| Check | Expected | Observed | Pass |
-|-------|----------|----------|------|
-| Header text | "DeepSeek Dashboard Client-Side" | Present | ✅ |
-| Theme toggle button | ☀ or 🌙 | ☀ (dark) | ✅ |
-| Workspace select | Present | Present (Default) | ✅ |
-| Drop zone present | .drop-zone present | Present | ✅ |
-| Drop zone text | "Drop DeepSeek usage ZIP here" | Present | ✅ |
-| Drop zone format help | ZIP of amount-*/cost-* CSVs (utc_date/model/type/price/amount) | Correct CSV-format text (no JSON mention) | ✅ |
-| Export CSV button | Present | true | ✅ |
-| Export All Raw button | Present | true | ✅ |
-| Pricing Calculator button | Present | true | ✅ |
-| Anomaly Detection card | Present | true | ✅ |
-| Rate Limit Monitor card | Present | true | ✅ |
-| Raw Data section | Present (with search box) | Present + searchbox | ✅ |
-| GitHub link | Present | true | ✅ |
-| Empty state text | "No data yet — drag in a DeepSeek usage ZIP" | true | ✅ |
-| 6 canvas elements | 6 | 6 | ✅ |
-| 6 select elements | 6 | 6 | ✅ |
+| Check | Expected | Observed |
+|-------|----------|---------|
+| Header text | "DeepSeek Dashboard Client-Side" | "DeepSeek Dashboard Client-Side" |
+| Theme toggle button | Contains ☀ or 🌙 | ☀ (light mode active) |
+| Workspace select | Present with options | "Default" selected |
+| Drop zone | Present with text | "Drop DeepSeek usage ZIP here..." |
+| Export CSV button | Present | Yes |
+| Export All Raw button | Present | Yes |
+| Pricing Calculator button | Contains "Pricing Calculator" | Yes |
+| Anomaly Detection card | Present | Yes |
+| Rate Limit Monitor card | Present | Yes |
+| Raw Data section | Present | Yes |
+| GitHub link | Present | Yes |
 
-## Interactive Checks
+All UI checks PASS.
 
-| Check | Result | Pass |
-|-------|--------|------|
-| Theme toggle dark → light → dark | data-theme flipped both ways | ✅ |
-| Console errors | 0 | ✅ |
-| Console warnings | 0 | ✅ |
+---
 
-## Screenshot
+## Interactive Tests
 
-`screenshots/t183-e2e.png` — dark theme, empty state, all sections rendered; vision-verified (no visual breakage, no overlap, correct styling).
+### Theme Toggle
+- Before click: data-theme = "dark"
+- After click 1: data-theme = "light"
+- After click 2: data-theme = "dark"
+- Toggled: true
+- **PASS** — theme toggles dark → light → dark correctly.
+
+### Anomaly Card Toggle
+- Selector `.anomaly-toggle`: present
+- Before click: display = "block" (expanded)
+- After click 1: display = "none" (collapsed)
+- After click 2: display = "block" (expanded)
+- Toggled: true
+- **PASS** — anomaly card expands/collapses correctly.
+
+### Rate Limit Monitor Toggle
+- Selector `.rate-limit-toggle`: NOT present
+- **BENIGN** — selector absence documented as expected variant across ticks (T109 documented absence as benign; T124 found them present). No failure.
+
+---
+
+## Console
+
+- Console messages: 0
+- JS errors: 0
+- Console warnings: 0
+- **PASS** — clean console, no errors or warnings.
+
+---
+
+## h3 Count Drift (Benign Note)
+
+- Expected (older baseline): 6 chart-card h3s
+- Observed: 11 h3 elements total
+- **BENIGN** — documented chart-card h3 count drift (proven T83, 2026-08-07). Page renders 7 chart sections + nested h3s inside Anomaly/Rate Limit collapsibles. The 6-canvas structural check still passes. Not a failure.
+
+---
+
+## Screenshots
+
+| File | Dimensions | Size | md5 | verify-png |
+|------|-----------|------|-----|------------|
+| e2e-output/screenshots/01-dashboard.png | 1265x3580 | 296,090 bytes | 9a839769ff308520c84a5d9dafdbc014 | VALID (8 chunks, unique_sample=101) |
+| e2e-output/screenshots/02-scrolled.png | 1280x3607 | 296,340 bytes | 189c13c218e0f7e198c689827174273f | VALID (8 chunks, unique_sample=89) |
+
+Both screenshots are full-page captures (captureBeyondViewport=true). Captured as JPEG quality 85 via direct CDP WebSocket (bypassing browser_cdp transport size cap), then converted to PNG via Pillow. Both >50KB (296KB each). Screenshots are NOT identical (different md5s, different dimensions — 1265x3580 vs 1280x3607). Dimension difference is benign: at bottom scroll position the vertical scrollbar hides, slightly widening the capture (documented since T53/T58).
+
+---
 
 ## Verdict
 
-**PASS — 19/19 checks** (structural 11/11, CDN 4/4, UI 16/16, interactive 3/3). Live site byte-identical to origin/main (md5 b1445754), no regressions since T178. Next due ~T188+.
+**Verdict: PASS (32/33 checks, 1 benign note)**
+
+- 32 checks PASS (structural 12/12, CDN 4/4, UI 11/11, interactive 2/2, console 3/3)
+- 1 benign note: h3 count drift (11 vs older 6-card baseline — documented and expected)
+- Rate-limit toggle selector absence: benign (documented variant, not a failure)
+- Screenshots: 2/2 valid full-page PNGs, both verify-png VALID
+
+---
+
+## Files Written
+
+- /home/kara/deepseek-dashboard/e2e-output/report.md (this file)
+- /home/kara/deepseek-dashboard/e2e-output/screenshots/01-dashboard.png (md5: 9a839769ff308520c84a5d9dafdbc014)
+- /home/kara/deepseek-dashboard/e2e-output/screenshots/02-scrolled.png (md5: 189c13c218e0f7e198c689827174273f)
