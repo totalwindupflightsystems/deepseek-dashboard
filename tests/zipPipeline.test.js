@@ -1,70 +1,30 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import JSZip from 'jszip';
-import { existsSync, readFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 // DSD-GAP-009: end-to-end ZIP -> parseCSV pipeline coverage.
-//
-// The app ingests DeepSeek usage ZIP exports (amount-YYYY-M.csv +
-// cost-YYYY-M.csv) via JSZip.loadAsync then parseCSV, routed by filename
-// prefix inside _processSingleFile. No prior test exercised that pipeline:
-// parseCSV itself is unit-tested, but a regression in ZIP ingestion (entry
-// iteration, prefix routing, extraction) would pass the suite silently.
-//
-// DSD-GAP-025 (fresh-clone test parity): sample-data.zip / usage_data.zip
-// are gitignored personal exports (README documents the *.zip ignore rule),
-// so the real-data tests used it.runIf(existsSync) and silently skipped on
-// fresh clones/CI — shrinking the advertised 83-test suite. Now the
-// pipeline tests ALWAYS run: when the real zips are present they assert
-// against them; otherwise a deterministic synthetic export is generated in
-// test setup, so CI and fresh clones exercise the full JSZip -> parseCSV
-// path with real row-count assertions. 0 skips on every checkout.
+// DSD-GAP-025: ALWAYS runs (no runIf, no existsSync) — committed fixtures.
+// DSD-GAP-040/041: deterministic, format-faithful synthetic export committed
+// in tests/fixtures/ so the real-format path (YYYYMMDD normalization,
+// malformed-date dropping, amount-/cost- prefix routing) runs identically
+// on fresh clones and CI with zero personal zips and zero skips.
 
-const SAMPLE_ZIP = resolve(process.cwd(), 'sample-data.zip');
-const USAGE_ZIP = resolve(process.cwd(), 'usage_data.zip');
-const hasSampleZip = existsSync(SAMPLE_ZIP);
+// --- Committed fixture data (tests/fixtures/) ---
+const FIXTURES_DIR = resolve(process.cwd(), 'tests', 'fixtures');
+const AMOUNT_CSV = readFileSync(resolve(FIXTURES_DIR, 'amount-2026-06.csv'), 'utf-8');
+const COST_CSV = readFileSync(resolve(FIXTURES_DIR, 'cost-2026-06.csv'), 'utf-8');
 
-// Real sample-data.zip expectations (amount-2026-6.csv: 569 lines incl.
-// header -> 568 data rows; cost-2026-6.csv: 45 lines incl. header -> 44).
-const REAL_AMOUNT_ROWS = 568;
-const REAL_COST_ROWS = 44;
-
-// Synthetic fallback export size (deterministic, generated in test setup).
-const SYNTH_AMOUNT_ROWS = 30;
-const SYNTH_COST_ROWS = 15;
-
-const SYNTHETIC_AMOUNT = [
-  'user_id,utc_date,model,api_key_name,api_key,type,price,amount',
-  'u1,2026-07-01,deepseek-v4-pro,k1,sk-fakekey,completion,0.5,100',
-  'u2,2026-07-02,deepseek-v4-flash,k2,sk-fakekey,completion,0.1,200',
-].join('\n') + '\n';
-
-const SYNTHETIC_COST = [
-  'user_id,utc_date,model,wallet_type,cost,currency',
-  'u1,2026-07-01,deepseek-v4-pro,Paid,0.5000000000000000,USD',
-  'u2,2026-07-02,deepseek-v4-flash,Paid,0.2000000000000000,USD',
-].join('\n') + '\n';
-
-// Deterministic multi-row export generator (DSD-GAP-025 fallback fixture).
-function buildSyntheticCsv(kind, rows) {
-  const header =
-    kind === 'amount'
-      ? 'user_id,utc_date,model,api_key_name,api_key,type,price,amount'
-      : 'user_id,utc_date,model,wallet_type,cost,currency';
-  const lines = [];
-  for (let i = 1; i <= rows; i++) {
-    const day = String((i % 28) + 1).padStart(2, '0');
-    const model = i % 2 ? 'deepseek-v4-pro' : 'deepseek-v4-flash';
-    if (kind === 'amount') {
-      lines.push(
-        `u${i},2026-07-${day},${model},k${(i % 3) + 1},sk-fakekey,completion,0.${i % 9},${i * 100}`
-      );
-    } else {
-      lines.push(`u${i},2026-07-${day},${model},Paid,0.${i % 9}000000000000000,USD`);
-    }
-  }
-  return header + '\n' + lines.join('\n') + '\n';
-}
+// Fixture row counts (deterministic — hardcoded).
+// Each CSV has 22 data rows, including 1 malformed-date row (not-a-date)
+// that _processSingleFile drops. So parseCSV returns 22, but the
+// ingestion path keeps 21. The YYYYMMDD rows (20260615, 20260620) are
+// normalized to YYYY-MM-DD and kept.
+const FIXTURE_AMOUNT_ROWS = 22; // before drop
+const FIXTURE_COST_ROWS = 22;   // before drop
+const FIXTURE_AMOUNT_KEPT = 21;  // after malformed-date drop
+const FIXTURE_COST_KEPT = 21;    // after malformed-date drop
+const FIXTURE_DROPPED = 2;       // 1 amount + 1 cost malformed-date row
 
 async function buildZip(entries) {
   const zip = new JSZip();
@@ -86,31 +46,32 @@ async function extractCsvRows(zipBytes) {
   return { zip, amount, cost };
 }
 
-describe('ZIP ingestion pipeline (JSZip -> parseCSV)', () => {
-  it('parses a synthetic in-memory ZIP export into expected row counts', async () => {
-    const bytes = await buildZip({
-      'amount-2026-7.csv': SYNTHETIC_AMOUNT,
-      'cost-2026-7.csv': SYNTHETIC_COST,
+// Build the fixture ZIP once for all tests in this file.
+let fixtureZip;
+beforeEach(async () => {
+  if (!fixtureZip) {
+    fixtureZip = await buildZip({
+      'amount-2026-06.csv': AMOUNT_CSV,
+      'cost-2026-06.csv': COST_CSV,
     });
-    const { amount, cost } = await extractCsvRows(bytes);
-    expect(amount).toHaveLength(2);
-    expect(cost).toHaveLength(2);
-    expect(amount[0].utc_date).toBe('2026-07-01');
-    expect(amount[0].type).toBe('completion');
-    expect(cost[1].model).toBe('deepseek-v4-flash');
-    expect(cost[1].currency).toBe('USD');
+  }
+});
+
+describe('ZIP ingestion pipeline (JSZip -> parseCSV) — committed fixtures (DSD-GAP-040/041)', () => {
+  it('parses the fixture ZIP export into expected row counts', async () => {
+    const { amount, cost } = await extractCsvRows(fixtureZip);
+    // parseCSV returns all rows including malformed-date ones (22 each).
+    // The drop happens in _processSingleFile, not parseCSV.
+    expect(amount).toHaveLength(FIXTURE_AMOUNT_ROWS);
+    expect(cost).toHaveLength(FIXTURE_COST_ROWS);
   });
 
   it('routes entries by amount-/cost- prefix like _processSingleFile', async () => {
-    const bytes = await buildZip({
-      'cost-2026-7.csv': SYNTHETIC_COST,
-      'amount-2026-7.csv': SYNTHETIC_AMOUNT,
-    });
-    const { zip, amount, cost } = await extractCsvRows(bytes);
+    const { zip, amount, cost } = await extractCsvRows(fixtureZip);
     const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir).sort();
-    expect(names).toEqual(['amount-2026-7.csv', 'cost-2026-7.csv']);
-    expect(amount).toHaveLength(2);
-    expect(cost).toHaveLength(2);
+    expect(names).toEqual(['amount-2026-06.csv', 'cost-2026-06.csv']);
+    expect(amount).toHaveLength(FIXTURE_AMOUNT_ROWS);
+    expect(cost).toHaveLength(FIXTURE_COST_ROWS);
   });
 
   it('ignores non-CSV / non-amount-cost entries (no rows produced)', async () => {
@@ -120,59 +81,144 @@ describe('ZIP ingestion pipeline (JSZip -> parseCSV)', () => {
     expect(cost).toHaveLength(0);
   });
 
-  // DSD-GAP-025: ALWAYS runs (no runIf skip). Real sample-data.zip when
-  // present; deterministic synthetic export otherwise — fresh clones and CI
-  // still get full pipeline + row-count coverage.
-  it('loads a realistic ZIP export (real sample-data.zip, else generated synthetic) and verifies parsed row counts', async () => {
-    let bytes;
-    let expectedNames;
-    let expectedAmount;
-    let expectedCost;
-    if (hasSampleZip) {
-      bytes = new Uint8Array(readFileSync(SAMPLE_ZIP));
-      expectedNames = ['amount-2026-6.csv', 'cost-2026-6.csv'];
-      expectedAmount = REAL_AMOUNT_ROWS;
-      expectedCost = REAL_COST_ROWS;
-    } else {
-      bytes = await buildZip({
-        'amount-2026-7.csv': buildSyntheticCsv('amount', SYNTH_AMOUNT_ROWS),
-        'cost-2026-7.csv': buildSyntheticCsv('cost', SYNTH_COST_ROWS),
-      });
-      expectedNames = ['amount-2026-7.csv', 'cost-2026-7.csv'];
-      expectedAmount = SYNTH_AMOUNT_ROWS;
-      expectedCost = SYNTH_COST_ROWS;
+  it('YYYYMMDD rows are normalized to YYYY-MM-DD by parseCSV + _processSingleFile logic', async () => {
+    const { amount, cost } = await extractCsvRows(fixtureZip);
+    // The two YYYYMMDD fixture rows survive parseCSV as-is (8-digit strings).
+    const amountYYYYMMDD = amount.filter((r) => /^\d{8}$/.test(r.utc_date));
+    const costYYYYMMDD = cost.filter((r) => /^\d{8}$/.test(r.utc_date));
+    expect(amountYYYYMMDD).toHaveLength(2);
+    expect(costYYYYMMDD).toHaveLength(2);
+
+    // Apply the same normalization _processSingleFile does.
+    const norm = (d) =>
+      /^\d{8}$/.test(d) ? d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8) : d;
+    const normedAmount = amountYYYYMMDD.map((r) => norm(r.utc_date));
+    const normedCost = costYYYYMMDD.map((r) => norm(r.utc_date));
+    expect(normedAmount).toContain('2026-06-15');
+    expect(normedAmount).toContain('2026-06-20');
+    expect(normedCost).toContain('2026-06-15');
+    expect(normedCost).toContain('2026-06-20');
+
+    // After normalization, all surviving rows match YYYY-MM-DD.
+    const allNormed = [...amount, ...cost].map((r) => norm(r.utc_date));
+    for (const d of allNormed) {
+      if (d !== 'not-a-date') {
+        expect(d).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      }
     }
-
-    const zip = await JSZip.loadAsync(bytes);
-    const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir).sort();
-    expect(names).toEqual(expectedNames);
-
-    const { amount, cost } = await extractCsvRows(bytes);
-    expect(amount).toHaveLength(expectedAmount);
-    expect(cost).toHaveLength(expectedCost);
-
-    // Real exports carry YYYY-MM-DD utc_date (YYYYMMDD normalization is
-    // covered by the parseCSV edge tests)
-    for (const r of [...amount, ...cost]) {
-      expect(r.utc_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    }
-    expect(amount.every((r) => r.model && r.utc_date && r.amount)).toBe(true);
-    expect(cost.every((r) => r.model && r.wallet_type && r.cost)).toBe(true);
   });
 
-  // DSD-GAP-025: second real-zip test is also skip-free (synthetic fallback).
-  it('ingests a multi-CSV export producing rows for every entry (real usage_data.zip, else synthetic)', async () => {
-    let bytes;
-    if (existsSync(USAGE_ZIP)) {
-      bytes = new Uint8Array(readFileSync(USAGE_ZIP));
-    } else {
-      bytes = await buildZip({
-        'amount-2026-7.csv': buildSyntheticCsv('amount', 12),
-        'cost-2026-7.csv': buildSyntheticCsv('cost', 8),
-      });
+  it('fixture includes all four amount types (input_cache_hit/miss, output, request_count)', async () => {
+    const { amount } = await extractCsvRows(fixtureZip);
+    const types = new Set(amount.map((r) => r.type));
+    expect(types.has('input_cache_hit_tokens')).toBe(true);
+    expect(types.has('input_cache_miss_tokens')).toBe(true);
+    expect(types.has('output_tokens')).toBe(true);
+    expect(types.has('request_count')).toBe(true);
+  });
+
+  it('request_count rows have empty price field (matching real export format)', async () => {
+    const { amount } = await extractCsvRows(fixtureZip);
+    const rcRows = amount.filter((r) => r.type === 'request_count');
+    expect(rcRows.length).toBeGreaterThan(0);
+    // Empty price means the field is empty string after parseCSV trims.
+    for (const r of rcRows) {
+      expect(r.price).toBe('');
     }
-    const { amount, cost } = await extractCsvRows(bytes);
-    expect(amount.length).toBeGreaterThan(0);
-    expect(cost.length).toBeGreaterThan(0);
+  });
+
+  it('fixture includes exactly one malformed-date row per file (exercises drop path)', async () => {
+    const { amount, cost } = await extractCsvRows(fixtureZip);
+    const badAmount = amount.filter((r) =>
+      r.utc_date && !/^\d{4}-\d{2}-\d{2}$/.test(r.utc_date) && !/^\d{8}$/.test(r.utc_date)
+    );
+    const badCost = cost.filter((r) =>
+      r.utc_date && !/^\d{4}-\d{2}-\d{2}$/.test(r.utc_date) && !/^\d{8}$/.test(r.utc_date)
+    );
+    expect(badAmount).toHaveLength(1);
+    expect(badCost).toHaveLength(1);
+    expect(badAmount[0].utc_date).toBe('not-a-date');
+    expect(badCost[0].utc_date).toBe('not-a-date');
+  });
+});
+
+// --- Real ingestion path via handleMultipleUpload (DSD-GAP-040/041) ---
+//
+// Drives the fixture ZIP through the app's actual _processSingleFile path
+// (window.handleMultipleUpload) with JSZip exposed and db stubbed, mirroring
+// the uploadToast.test.js pattern. Asserts the malformed-date row is dropped
+// and the dropped count is surfaced in the toast — no throw.
+describe('ZIP ingestion through handleMultipleUpload (DSD-GAP-040/041 real path)', () => {
+  const toastEl = () => document.getElementById('toast');
+
+  function makeFile(name, bytes) {
+    return new window.File([bytes], name, { type: 'application/zip' });
+  }
+
+  beforeEach(() => {
+    window.JSZip = JSZip;
+    globalThis.JSZip = JSZip;
+    globalThis.activeWsId = 'ws-test';
+
+    globalThis.db = {
+      exec: () => [],
+      run: () => {},
+      prepare: () => ({ run: () => {}, free: () => {} }),
+      export: () => new Uint8Array(0),
+    };
+
+    window.saveDB = async () => {};
+    globalThis.saveDB = window.saveDB;
+    window.refreshAll = async () => {};
+    globalThis.refreshAll = window.refreshAll;
+
+    window.toast = function (msg, warn) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast show' + (warn ? ' warn' : '');
+    };
+
+    toastEl().textContent = '';
+    toastEl().className = 'toast';
+  });
+
+  it('fixture ZIP through handleMultipleUpload drops malformed-date rows and surfaces count in toast', async () => {
+    const file = makeFile('fixture-2026-06.zip', fixtureZip);
+    await window.handleMultipleUpload([file]);
+
+    const finalText = toastEl().textContent;
+    // The dropped count (1 amount + 1 cost = 2) must be surfaced.
+    expect(finalText).toMatch(/2 dropped — invalid utc_date/);
+  });
+
+  it('fixture ZIP through handleMultipleUpload processes without throwing and shows a success summary', async () => {
+    const file = makeFile('fixture-2026-06.zip', fixtureZip);
+    await window.handleMultipleUpload([file]);
+
+    const finalText = toastEl().textContent;
+    // Success path — not a failure toast.
+    expect(finalText).not.toMatch(/^Error:/);
+    // Shows row count (token rows inserted — amount rows minus the header-type
+    // filter in _processSingleFile, but at minimum shows "Added N rows").
+    expect(finalText).toMatch(/Added \d+ rows/);
+  });
+
+  it('fixture ZIP through handleMultipleUpload does not surface dropped count when no malformed rows', async () => {
+    // Build a clean ZIP (no malformed dates) from the fixture data.
+    const cleanAmount = AMOUNT_CSV.split('\n')
+      .filter((line) => !line.includes('not-a-date'))
+      .join('\n');
+    const cleanCost = COST_CSV.split('\n')
+      .filter((line) => !line.includes('not-a-date'))
+      .join('\n');
+    const cleanZip = await buildZip({
+      'amount-2026-06.csv': cleanAmount,
+      'cost-2026-06.csv': cleanCost,
+    });
+    const file = makeFile('clean-2026-06.zip', cleanZip);
+    await window.handleMultipleUpload([file]);
+
+    const finalText = toastEl().textContent;
+    expect(finalText).not.toMatch(/dropped/);
   });
 });

@@ -92,7 +92,7 @@ The dashboard parses both, cross-references pricing, and presents the complete p
 
 ## Sample Data
 
-The dashboard was developed and tested against a real June 2026 usage export. The sample numbers below give you a sense of what a typical month looks like:
+The dashboard was developed against a real June 2026 usage export; the automated test suite runs a deterministic, format-faithful synthetic fixture committed in tests/fixtures/ so the full ingestion path (including date normalization) is exercised identically on fresh clones and CI. The sample numbers below come from the June 2026 export used during development:
 
 - **$380.08** total spend over 22 days
 - **16.25 billion** total tokens
