@@ -1,14 +1,12 @@
-# E2E Lean Report — DeepSeek Dashboard
+# E2E Verification Report — DeepSeek Dashboard
 
-**Run:** T188
-**Timestamp:** 2026-08-21T18:28Z
-**URL:** https://totalwindupflightsystems.github.io/deepseek-dashboard/
-**Target ID:** 24FAAA78EA23E698DD4022253EA72486
-
----
+## Run Metadata
+- **Run:** T193
+- **Timestamp:** 2026-08-23 11:54 UTC
+- **URL:** https://totalwindupflightsystems.github.io/deepseek-dashboard/
+- **Method:** CDP Runtime.evaluate (no browser_vision), screenshots via Page.captureScreenshot
 
 ## Structural Check
-
 ```json
 {
   "title": "DeepSeek Usage Dashboard",
@@ -26,12 +24,9 @@
 }
 ```
 
-All structural checks PASS: title correct, readyState complete, initSqlJs function, SQL object, sqlite3 undefined, 6 canvas, 6 select, 21 button, 0 file input, drop zone present, no [data-error], empty state text "No data yet" present.
-
----
+All structural values match the known-good baseline exactly.
 
 ## CDN Resources
-
 | Resource | Status |
 |----------|--------|
 | jszip.min.js | 200 |
@@ -39,94 +34,66 @@ All structural checks PASS: title correct, readyState complete, initSqlJs functi
 | sql-wasm.js | 200 |
 | sql-wasm.wasm | 200 |
 
-All CDN resources HTTP 200. Chart.js 4.5.1 (chart.umd.min.js) + JSZip 3.10.1 (jszip.min.js) + sql.js (sql-wasm.js + sql-wasm.wasm) all loaded successfully.
-
----
+All 4 CDN resources HTTP 200. Chart.js 4.5.1 + JSZip 3.10.1 + sql.js confirmed.
 
 ## UI Checklist
-
 | Check | Expected | Observed |
-|-------|----------|---------|
-| Header text | "DeepSeek Dashboard Client-Side" | "DeepSeek Dashboard Client-Side" |
-| Theme toggle button | Contains ☀ or 🌙 | ☀ (light mode active) |
-| Workspace select | Present with options | "Default" selected |
-| Drop zone | Present with text | "Drop DeepSeek usage ZIP here..." |
-| Export CSV button | Present | Yes |
-| Export All Raw button | Present | Yes |
-| Pricing Calculator button | Contains "Pricing Calculator" | Yes |
-| Anomaly Detection card | Present | Yes |
-| Rate Limit Monitor card | Present | Yes |
-| Raw Data section | Present | Yes |
-| GitHub link | Present | Yes |
-
-All UI checks PASS.
-
----
+|-------|----------|----------|
+| Header h1 | "DeepSeek Dashboard Client-Side" | "DeepSeek Dashboard Client-Side" ✅ |
+| GitHub link | Present | true ✅ |
+| Theme toggle button | ☀ or 🌙 | ☀ (current theme: dark) ✅ |
+| Workspace select | Present (≥1 option) | 1 option ("Default") ✅ |
+| Drop zone | '.drop-zone' present with help text | "Drop DeepSeek usage ZIP here..." ✅ |
+| Export CSV button | Present | true ✅ |
+| Export All Raw button | Present | true ✅ |
+| Pricing Calculator button | "💰 Pricing Calculator" | true ✅ |
+| Anomaly Detection card | Present | true ✅ |
+| Rate Limit Monitor card | Present | true ✅ |
+| Raw Data section | Present | true ✅ |
+| Empty state text | "No data yet" | true ✅ |
+| No [data-error] | false | false ✅ |
 
 ## Interactive Tests
 
 ### Theme Toggle
 - Before click: data-theme = "dark"
-- After click 1: data-theme = "light"
-- After click 2: data-theme = "dark"
-- Toggled: true
-- **PASS** — theme toggles dark → light → dark correctly.
+- After 1st click: data-theme = "light"
+- After 2nd click: data-theme = "dark"
+- Result: dark → light → dark (toggle works correctly) ✅
 
 ### Anomaly Card Toggle
-- Selector `.anomaly-toggle`: present
+- Selector `.anomaly-toggle` found: yes
 - Before click: display = "block" (expanded)
-- After click 1: display = "none" (collapsed)
-- After click 2: display = "block" (expanded)
-- Toggled: true
-- **PASS** — anomaly card expands/collapses correctly.
+- After 1st click: display = "none" (collapsed)
+- After 2nd click: display = "block" (expanded)
+- Result: block → none → block (collapse/expand works correctly) ✅
 
 ### Rate Limit Monitor Toggle
-- Selector `.rate-limit-toggle`: NOT present
-- **BENIGN** — selector absence documented as expected variant across ticks (T109 documented absence as benign; T124 found them present). No failure.
+- Selector `.rate-limit-toggle`: not found (absent on this deployed page)
+- Note: Per T109/T124 documentation, selector presence has varied across ticks. Absence is benign and NOT a failure.
 
----
-
-## Console
-
+## Console Output
 - Console messages: 0
 - JS errors: 0
-- Console warnings: 0
-- **PASS** — clean console, no errors or warnings.
-
----
-
-## h3 Count Drift (Benign Note)
-
-- Expected (older baseline): 6 chart-card h3s
-- Observed: 11 h3 elements total
-- **BENIGN** — documented chart-card h3 count drift (proven T83, 2026-08-07). Page renders 7 chart sections + nested h3s inside Anomaly/Rate Limit collapsibles. The 6-canvas structural check still passes. Not a failure.
-
----
+- JS warnings: 0
 
 ## Screenshots
-
-| File | Dimensions | Size | md5 | verify-png |
+| File | Dimensions | Size | MD5 | verify-png |
 |------|-----------|------|-----|------------|
-| e2e-output/screenshots/01-dashboard.png | 1265x3580 | 296,090 bytes | 9a839769ff308520c84a5d9dafdbc014 | VALID (8 chunks, unique_sample=101) |
-| e2e-output/screenshots/02-scrolled.png | 1280x3607 | 296,340 bytes | 189c13c218e0f7e198c689827174273f | VALID (8 chunks, unique_sample=89) |
+| e2e-output/screenshots/01-dashboard.png | 1265x3580 | 122,711 B | 31ad999dcc22348bc7243acefb265ef5 | VALID (33 chunks, unique_sample=72) |
+| e2e-output/screenshots/02-scrolled.png | 1280x3607 | 122,956 B | f3fa82762bbbaba9a9b35e608c37a525 | VALID (33 chunks, unique_sample=83) |
 
-Both screenshots are full-page captures (captureBeyondViewport=true). Captured as JPEG quality 85 via direct CDP WebSocket (bypassing browser_cdp transport size cap), then converted to PNG via Pillow. Both >50KB (296KB each). Screenshots are NOT identical (different md5s, different dimensions — 1265x3580 vs 1280x3607). Dimension difference is benign: at bottom scroll position the vertical scrollbar hides, slightly widening the capture (documented since T53/T58).
+**Note:** Screenshots differ in dimensions (1265x3580 vs 1280x3607) — the vertical scrollbar hides at bottom scroll, widening the capture by 15px. This is a documented benign variant (T53/T58/T159 precedent). Screenshots are NOT byte-identical (different scroll positions captured).
 
----
+## Benign Notes
+1. **Chart-card h3 count drift:** The page renders 7 chart sections + 3 nested h3s inside the Anomaly/Rate Limit collapsibles = 10 h3 elements total vs the older 6-card baseline. The 6-canvas structural check passes. This is a documented benign note (T83, T109).
 
-## Verdict
+## Verdict: PASS (33/33)
 
-**Verdict: PASS (32/33 checks, 1 benign note)**
-
-- 32 checks PASS (structural 12/12, CDN 4/4, UI 11/11, interactive 2/2, console 3/3)
-- 1 benign note: h3 count drift (11 vs older 6-card baseline — documented and expected)
-- Rate-limit toggle selector absence: benign (documented variant, not a failure)
-- Screenshots: 2/2 valid full-page PNGs, both verify-png VALID
-
----
-
-## Files Written
-
-- /home/kara/deepseek-dashboard/e2e-output/report.md (this file)
-- /home/kara/deepseek-dashboard/e2e-output/screenshots/01-dashboard.png (md5: 9a839769ff308520c84a5d9dafdbc014)
-- /home/kara/deepseek-dashboard/e2e-output/screenshots/02-scrolled.png (md5: 189c13c218e0f7e198c689827174273f)
+All 33 checks passed:
+- 11 structural checks (title, readyState, sqlJs, SQL, sqlite3, canvases, selects, buttons, fileInputs, dropZone, emptyState)
+- 4 CDN resource checks (all HTTP 200)
+- 13 UI element checks (header, GitHub link, theme toggle, workspace select, drop zone, 3 export buttons, anomaly card, rate limit card, raw data, no errors)
+- 2 interactive tests (theme toggle, anomaly card toggle)
+- 1 console check (0 errors/warnings)
+- 2 screenshot verifications (both valid PNGs)
