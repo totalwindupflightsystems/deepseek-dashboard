@@ -335,3 +335,17 @@ tr:hover td { background: var(--bg-card-hover); }
 .projection-summary { display: flex; flex-wrap: wrap; gap: 16px; padding: 8px 0; font-size: 0.82rem; color: var(--text-dim); }
 .projection-summary .proj-summary-item { white-space: nowrap; }
 .projection-summary .proj-summary-item strong { color: var(--text-bright); }
+
+/* DSD-GAP-045: Quarterly view styles */
+.qoq-panel-card { padding: 18px; }
+.qoq-panel { display: flex; flex-direction: column; gap: 12px; }
+.qoq-quarter { display: flex; align-items: center; gap: 16px; padding: 10px 12px; background: var(--bg-input, var(--bg-card)); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.qoq-q-label { font-size: 0.9rem; font-weight: 600; color: var(--text-bright); min-width: 80px; }
+.qoq-q-stats { display: flex; gap: 24px; flex-wrap: wrap; }
+.qoq-stat { display: flex; flex-direction: column; gap: 2px; }
+.qoq-stat-label { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+.qoq-stat-total { font-size: 0.88rem; font-weight: 600; color: var(--text); }
+.qoq-stat-delta { font-size: 0.78rem; }
+.qoq-stat-delta.up { color: var(--green, #3fb950); }
+.qoq-stat-delta.down { color: var(--red, #f85149); }
+.qoq-stat-delta.first { color: var(--text-dim); font-style: italic; }

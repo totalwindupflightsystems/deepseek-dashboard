@@ -72,6 +72,11 @@ const funcNames = [
   'linreg', 'expfit', 'projectFit', 'projectConfidenceBand',
   'computeQuarterProjection', 'getSelectedProjection', 'getSelectedHorizon',
   'buildProjectionDatasets', 'renderProjectionSummary',
+  // DSD-GAP-045: quarterly aggregation helpers
+  'normalizeDate', 'quarterKey', 'quarterLabel', 'aggregateByQuarter',
+  'computeQoQ', 'renderQuarterlyChart', 'renderQoQPanel',
+  'populateQuarterSelect', 'getSelectedQuarter', 'filterDaysByQuarter',
+  'renderQuarterDrilldown',
 ];
 
 for (const name of funcNames) {

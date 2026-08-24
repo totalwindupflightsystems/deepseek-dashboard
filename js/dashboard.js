@@ -1254,6 +1254,458 @@ function renderProjectionSummary(days, fitType) {
     '<span class="proj-summary-item">Fit r²: tokens ' + tokProj.fitR2.toFixed(3) + ', spend ' + spendProj.fitR2.toFixed(3) + '</span>';
 }
 
+// ─────────────────────────────────────────────
+// DSD-GAP-045: Quarterly aggregation helpers
+// ─────────────────────────────────────────────
+
+/**
+ * Normalize a date string to 'YYYY-MM-DD'.
+ * Handles both 'YYYY-MM-DD' (standard) and 'YYYYMMDD' (DeepSeek CSV export format).
+ * @param {string} dateStr
+ * @returns {string} 'YYYY-MM-DD' or '' for invalid input
+ */
+function normalizeDate(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return '';
+  var s = dateStr.trim();
+  // 8-digit YYYYMMDD format (DeepSeek CSV exports)
+  if (/^\d{8}$/.test(s) && s.indexOf('-') === -1) {
+    return s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6, 8);
+  }
+  // Standard YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return '';
+}
+
+/**
+ * quarterKey(dateStr) → 'YYYY-Qn'
+ * Maps a date string to its calendar quarter key.
+ * Handles both 'YYYY-MM-DD' and 'YYYYMMDD' formats (normalizes first).
+ * Boundary correctness: Dec 31 → Q4 of its year, Jan 1 → Q1 of its year.
+ * @param {string} dateStr — 'YYYY-MM-DD' or 'YYYYMMDD'
+ * @returns {string} 'YYYY-Qn' (e.g. '2025-Q4', '2026-Q1') or '' for invalid
+ */
+function quarterKey(dateStr) {
+  var norm = normalizeDate(dateStr);
+  if (!norm) return '';
+  var yr = parseInt(norm.slice(0, 4), 10);
+  var mo = parseInt(norm.slice(5, 7), 10);
+  if (isNaN(yr) || isNaN(mo) || mo < 1 || mo > 12) return '';
+  var q = Math.floor((mo - 1) / 3) + 1; // 1..4
+  return yr + '-Q' + q;
+}
+
+/**
+ * quarterLabel(qKey) → human-readable label
+ * @param {string} qKey — 'YYYY-Qn' (from quarterKey)
+ * @returns {string} e.g. 'Q1 2025' or '' for invalid
+ */
+function quarterLabel(qKey) {
+  if (!qKey || typeof qKey !== 'string') return '';
+  var parts = qKey.split('-Q');
+  if (parts.length !== 2) return '';
+  var yr = parts[0];
+  var qn = parseInt(parts[1], 10);
+  if (isNaN(qn) || qn < 1 || qn > 4) return '';
+  return 'Q' + qn + ' ' + yr;
+}
+
+/**
+ * aggregateByQuarter(days) → array of quarter aggregation objects, sorted ascending.
+ * Each quarter object: { key, label, dayCount, totalTokens, totalCost, avgDailyTokens,
+ *   avgDailyCost, byModel: { model: {tokens, cost} }, byWorkspace: { ws: {tokens, cost} } }
+ * Cost convention matches KPIs: d.cost_csv || d.cost_tokens.
+ * @param {Array} days — day objects from getDailyData
+ * @returns {Array<{key:string,label:string,dayCount:number,totalTokens:number,totalCost:number,avgDailyTokens:number,avgDailyCost:number,byModel:Object,byWorkspace:Object}>}
+ */
+function aggregateByQuarter(days) {
+  if (!days || !days.length) return [];
+  var buckets = {};
+  for (var i = 0; i < days.length; i++) {
+    var d = days[i];
+    var qk = quarterKey(d.date);
+    if (!qk) continue;
+    if (!buckets[qk]) {
+      buckets[qk] = {
+        key: qk,
+        label: quarterLabel(qk),
+        dayCount: 0,
+        totalTokens: 0,
+        totalCost: 0,
+        byModel: {},
+        byWorkspace: {}
+      };
+    }
+    var b = buckets[qk];
+    b.dayCount++;
+    b.totalTokens += d.total_tokens || 0;
+    var cost = d.cost_csv != null ? d.cost_csv : (d.cost_tokens || 0);
+    b.totalCost += cost;
+
+    // Per-model shares
+    if (d.byModel) {
+      for (var model in d.byModel) {
+        if (!d.byModel.hasOwnProperty(model)) continue;
+        if (!b.byModel[model]) b.byModel[model] = { tokens: 0, cost: 0 };
+        b.byModel[model].tokens += d.byModel[model].tokens || 0;
+        b.byModel[model].cost += d.byModel[model].cost || 0;
+      }
+    }
+
+    // Per-workspace shares (from _currentDays activeWsId if available, or 'default')
+    var wsName = 'default';
+    if (typeof activeWsId !== 'undefined' && activeWsId) {
+      // Try to find workspace name; fall back to id
+      wsName = activeWsId;
+    }
+    if (!b.byWorkspace[wsName]) b.byWorkspace[wsName] = { tokens: 0, cost: 0 };
+    b.byWorkspace[wsName].tokens += d.total_tokens || 0;
+    b.byWorkspace[wsName].cost += cost;
+  }
+
+  var result = Object.values(buckets).sort(function(a, b) {
+    return a.key.localeCompare(b.key);
+  });
+
+  // Compute daily averages
+  for (var j = 0; j < result.length; j++) {
+    var q = result[j];
+    q.avgDailyTokens = q.dayCount > 0 ? q.totalTokens / q.dayCount : 0;
+    q.avgDailyCost = q.dayCount > 0 ? q.totalCost / q.dayCount : 0;
+  }
+
+  return result;
+}
+
+/**
+ * computeQoQ(quarters) → adds QoQ delta fields to each quarter object.
+ * For each quarter (except the first), computes the delta vs the previous quarter.
+ * @param {Array} quarters — output of aggregateByQuarter (sorted ascending)
+ * @returns {Array} same array with added fields: qoqTokenDelta, qoqTokenPct,
+ *   qoqCostDelta, qoqCostPct (null for first quarter)
+ */
+function computeQoQ(quarters) {
+  if (!quarters || !quarters.length) return quarters || [];
+  for (var i = 0; i < quarters.length; i++) {
+    var q = quarters[i];
+    if (i === 0) {
+      q.qoqTokenDelta = null;
+      q.qoqTokenPct = null;
+      q.qoqCostDelta = null;
+      q.qoqCostPct = null;
+    } else {
+      var prev = quarters[i - 1];
+      q.qoqTokenDelta = q.totalTokens - prev.totalTokens;
+      q.qoqTokenPct = prev.totalTokens > 0
+        ? ((q.totalTokens - prev.totalTokens) / prev.totalTokens * 100)
+        : null;
+      q.qoqCostDelta = q.totalCost - prev.totalCost;
+      q.qoqCostPct = prev.totalCost > 0
+        ? ((q.totalCost - prev.totalCost) / prev.totalCost * 100)
+        : null;
+    }
+  }
+  return quarters;
+}
+
+/**
+ * Render the quarterly aggregation chart (bar chart of totals + line of daily averages).
+ * Reuses the Chart.js patterns: charts registry, destroyChart(id), Chart.js 4.5.1 API.
+ * @param {Array} days — day objects from getDailyData
+ */
+function renderQuarterlyChart(days) {
+  destroyChart('quarterly');
+  var ctx = document.getElementById('cQuarterly');
+  if (!ctx) return;
+  var quarters = aggregateByQuarter(days);
+  if (!quarters.length) return;
+
+  var labels = quarters.map(function(q) { return q.label; });
+
+  var datasets = [
+    {
+      type: 'bar',
+      label: 'Total Tokens',
+      data: quarters.map(function(q) { return q.totalTokens; }),
+      backgroundColor: 'rgba(76,110,245,0.6)',
+      borderColor: '#4c6ef5',
+      borderWidth: 1,
+      borderRadius: 4,
+      yAxisID: 'y',
+      order: 2
+    },
+    {
+      type: 'bar',
+      label: 'Total Cost ($)',
+      data: quarters.map(function(q) { return q.totalCost; }),
+      backgroundColor: 'rgba(57,210,192,0.6)',
+      borderColor: '#39d2c0',
+      borderWidth: 1,
+      borderRadius: 4,
+      yAxisID: 'y1',
+      order: 3
+    },
+    {
+      type: 'line',
+      label: 'Avg Daily Tokens',
+      data: quarters.map(function(q) { return q.avgDailyTokens; }),
+      borderColor: '#f778ba',
+      backgroundColor: 'rgba(247,120,186,0.1)',
+      fill: false,
+      tension: 0.3,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      borderWidth: 2,
+      yAxisID: 'y',
+      order: 1
+    },
+    {
+      type: 'line',
+      label: 'Avg Daily Cost ($)',
+      data: quarters.map(function(q) { return q.avgDailyCost; }),
+      borderColor: '#d2a8ff',
+      backgroundColor: 'rgba(210,168,255,0.1)',
+      fill: false,
+      tension: 0.3,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      borderWidth: 2,
+      yAxisID: 'y1',
+      order: 0
+    }
+  ];
+
+  var tick = { color: chartTickColor(), font: { size: chartFontSize() } };
+
+  charts.quarterly = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: labels, datasets: datasets },
+    options: {
+      ...chartCommonOptions(),
+      aspectRatio: 2.0,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: chartLegendOptions(),
+        tooltip: {
+          ...chartTooltipOptions(),
+          callbacks: {
+            label: function(ctx) {
+              var label = ctx.dataset.label || '';
+              var val = ctx.parsed.y;
+              if (label.indexOf('Cost') !== -1) {
+                return label + ': ' + fmtUSD(val);
+              }
+              return label + ': ' + fmtTok(val);
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { ...tick, maxTicksLimit: 14 }, grid: { color: chartGridColor() } },
+        y: {
+          position: 'left',
+          ticks: { ...tick, callback: function(v) { return fmtTok(v); } },
+          grid: { color: chartGridColor() },
+          title: { display: true, text: 'Tokens', color: chartTickColor(), font: { size: chartFontSize() } }
+        },
+        y1: {
+          position: 'right',
+          ticks: { ...tick, callback: function(v) { return fmtUSD(v); } },
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: 'Cost ($)', color: chartTickColor(), font: { size: chartFontSize() } }
+        }
+      }
+    }
+  });
+}
+
+/**
+ * Render the QoQ comparison panel into #qoqPanel.
+ * Shows quarter-over-quarter delta (absolute + percent) for tokens and cost.
+ * @param {Array} days — day objects from getDailyData
+ */
+function renderQoQPanel(days) {
+  var el = document.getElementById('qoqPanel');
+  if (!el) return;
+  var quarters = computeQoQ(aggregateByQuarter(days));
+  if (!quarters.length) {
+    el.innerHTML = '';
+    return;
+  }
+
+  var html = '';
+  for (var i = 0; i < quarters.length; i++) {
+    var q = quarters[i];
+    var isFirst = i === 0;
+    var tokArrow = !isFirst && q.qoqTokenDelta != null
+      ? (q.qoqTokenDelta >= 0 ? '▲' : '▼')
+      : '—';
+    var tokPctStr = !isFirst && q.qoqTokenPct != null
+      ? Math.abs(q.qoqTokenPct).toFixed(1) + '%'
+      : '';
+    var costArrow = !isFirst && q.qoqCostDelta != null
+      ? (q.qoqCostDelta >= 0 ? '▲' : '▼')
+      : '—';
+    var costPctStr = !isFirst && q.qoqCostPct != null
+      ? Math.abs(q.qoqCostPct).toFixed(1) + '%'
+      : '';
+
+    var tokDeltaStr = !isFirst && q.qoqTokenDelta != null
+      ? (q.qoqTokenDelta >= 0 ? '+' : '') + fmtTok(q.qoqTokenDelta)
+      : '—';
+    var costDeltaStr = !isFirst && q.qoqCostDelta != null
+      ? (q.qoqCostDelta >= 0 ? '+' : '') + fmtUSD(q.qoqCostDelta)
+      : '—';
+
+    html += '<div class="qoq-quarter">';
+    html += '<div class="qoq-q-label">' + escapeHtml(q.label) + '</div>';
+    html += '<div class="qoq-q-stats">';
+    html += '<div class="qoq-stat"><span class="qoq-stat-label">Tokens</span><span class="qoq-stat-total">' + fmtTok(q.totalTokens) + '</span>';
+    if (!isFirst) {
+      html += '<span class="qoq-stat-delta ' + (q.qoqTokenDelta >= 0 ? 'up' : 'down') + '">' + tokArrow + ' ' + tokDeltaStr + ' (' + tokPctStr + ')</span>';
+    } else {
+      html += '<span class="qoq-stat-delta first">— first quarter —</span>';
+    }
+    html += '</div>';
+    html += '<div class="qoq-stat"><span class="qoq-stat-label">Cost</span><span class="qoq-stat-total">' + fmtUSD(q.totalCost) + '</span>';
+    if (!isFirst) {
+      html += '<span class="qoq-stat-delta ' + (q.qoqCostDelta >= 0 ? 'up' : 'down') + '">' + costArrow + ' ' + costDeltaStr + ' (' + costPctStr + ')</span>';
+    } else {
+      html += '<span class="qoq-stat-delta first">— first quarter —</span>';
+    }
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+/**
+ * Populate the quarter selector dropdown with available quarters.
+ * @param {Array} days — day objects from getDailyData
+ */
+function populateQuarterSelect(days) {
+  var sel = document.getElementById('quarterSelect');
+  if (!sel) return;
+  var quarters = aggregateByQuarter(days);
+  var currentVal = sel.value;
+  var html = '<option value="all">All Quarters</option>';
+  for (var i = 0; i < quarters.length; i++) {
+    html += '<option value="' + escapeHtml(quarters[i].key) + '">' + escapeHtml(quarters[i].label) + '</option>';
+  }
+  sel.innerHTML = html;
+  // Preserve selection if still valid, otherwise reset to 'all'
+  if (currentVal && currentVal !== 'all' && quarters.some(function(q) { return q.key === currentVal; })) {
+    sel.value = currentVal;
+  } else {
+    sel.value = 'all';
+  }
+}
+
+/**
+ * Get the selected quarter from the dropdown.
+ * @returns {string} quarter key like '2025-Q4' or 'all'
+ */
+function getSelectedQuarter() {
+  var sel = document.getElementById('quarterSelect');
+  return sel ? (sel.value || 'all') : 'all';
+}
+
+/**
+ * Filter days to a specific quarter.
+ * @param {Array} days — all day objects
+ * @param {string} qKey — quarter key like '2025-Q4' or 'all'
+ * @returns {Array} filtered days (or all if qKey is 'all')
+ */
+function filterDaysByQuarter(days, qKey) {
+  if (!days || !days.length || !qKey || qKey === 'all') return days;
+  return days.filter(function(d) {
+    return quarterKey(d.date) === qKey;
+  });
+}
+
+/**
+ * Render the quarter drilldown chart — daily series for the selected quarter.
+ * @param {Array} days — all day objects (will be filtered to the selected quarter)
+ * @param {string} qKey — quarter key or 'all'
+ */
+function renderQuarterDrilldown(days, qKey) {
+  destroyChart('qDrilldown');
+  var ctx = document.getElementById('cQDrilldown');
+  if (!ctx) return;
+  var filtered = filterDaysByQuarter(days, qKey);
+  if (!filtered.length) return;
+
+  var labels = filtered.map(function(d) { return d.date; });
+  var datasets = [
+    {
+      type: 'bar',
+      label: 'Daily Tokens',
+      data: filtered.map(function(d) { return d.total_tokens || 0; }),
+      backgroundColor: 'rgba(76,110,245,0.5)',
+      borderColor: '#4c6ef5',
+      borderWidth: 1,
+      borderRadius: 2,
+      yAxisID: 'y'
+    },
+    {
+      type: 'line',
+      label: 'Daily Cost ($)',
+      data: filtered.map(function(d) { return d.cost_csv != null ? d.cost_csv : (d.cost_tokens || 0); }),
+      borderColor: '#39d2c0',
+      backgroundColor: 'rgba(57,210,192,0.1)',
+      fill: false,
+      tension: 0.3,
+      pointRadius: 2,
+      pointHoverRadius: 5,
+      borderWidth: 2,
+      yAxisID: 'y1'
+    }
+  ];
+
+  var tick = { color: chartTickColor(), font: { size: chartFontSize() } };
+
+  charts.qDrilldown = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: labels, datasets: datasets },
+    options: {
+      ...chartCommonOptions(),
+      aspectRatio: 2.2,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: chartLegendOptions(),
+        tooltip: {
+          ...chartTooltipOptions(),
+          callbacks: {
+            label: function(ctx) {
+              var label = ctx.dataset.label || '';
+              var val = ctx.parsed.y;
+              if (label.indexOf('Cost') !== -1) {
+                return label + ': ' + fmtUSD(val);
+              }
+              return label + ': ' + fmtTok(val);
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { ...tick, maxTicksLimit: 20, maxRotation: 45 }, grid: { color: chartGridColor() } },
+        y: {
+          position: 'left',
+          ticks: { ...tick, callback: function(v) { return fmtTok(v); } },
+          grid: { color: chartGridColor() },
+          title: { display: true, text: 'Tokens', color: chartTickColor(), font: { size: chartFontSize() } }
+        },
+        y1: {
+          position: 'right',
+          ticks: { ...tick, callback: function(v) { return fmtUSD(v); } },
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: 'Cost ($)', color: chartTickColor(), font: { size: chartFontSize() } }
+        }
+      }
+    }
+  });
+}
+
 /**
  * Build Chart.js line-dataset overlays for the token & spend charts based on
  * the selected trend type. Returns an array of Chart.js dataset objects.
@@ -1551,6 +2003,13 @@ async function refreshAll() {
 
   // DSD-GAP-044: Projection quarter summary
   renderProjectionSummary(days, getSelectedProjection());
+
+  // DSD-GAP-045: Quarterly aggregation view
+  populateQuarterSelect(days);
+  renderQuarterlyChart(days);
+  renderQoQPanel(days);
+  var selQ = getSelectedQuarter();
+  renderQuarterDrilldown(days, selQ);
 
   // Refresh raw data table
   renderTable(days, modelFilter, keyFilter);
@@ -2552,6 +3011,11 @@ document.getElementById('horizonSelect')?.addEventListener('change', function() 
     renderTokenChart(chartDays);
     renderSpendChart(chartDays);
   }
+});
+
+// DSD-GAP-045: Quarter selector — re-render drilldown on change
+document.getElementById('quarterSelect')?.addEventListener('change', function() {
+  renderQuarterDrilldown(_currentDays, this.value);
 });
 
 // Drop zone
