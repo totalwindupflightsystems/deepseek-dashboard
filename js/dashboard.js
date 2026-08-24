@@ -2036,6 +2036,9 @@ async function refreshAll() {
   var selQ = getSelectedQuarter();
   renderQuarterDrilldown(days, selQ);
 
+  // DSD-GAP-047: Insights Gallery
+  renderInsightGallery();
+
   // Refresh raw data table
   renderTable(days, modelFilter, keyFilter);
 }
@@ -2624,6 +2627,517 @@ function renderUploadHistory() {
       <span class="hi-meta">${fmtNum(u.rows_added)} rows · ${u.date_min}→${u.date_max} · ${timeAgo < 60 ? timeAgo+'m ago' : Math.round(timeAgo/60)+'h ago'}</span>
     </div>`;
   }).join('');
+}
+
+// ─────────────────────────────────────────────
+// DSD-GAP-047: Implicit-Insights Gallery
+// Juxtaposition charts that surface the story purely visually — no narrative
+// text. Each helper is a pure function returning data; renderInsightGallery
+// maps the data to Chart.js datasets.
+// ─────────────────────────────────────────────
+
+var INSIGHT_LS_KEY = 'ds-dash-insight-view';
+var _insightView = 'shareDivergence';
+
+/**
+ * tokenVsCostShareDivergence(days, series) → per-day per-workspace share data.
+ * For each day, computes each workspace's share of total tokens (tokenShare)
+ * and total cost (costShare), both 0–100. delta = costShare − tokenShare;
+ * positive delta means the workspace is getting proportionally more expensive.
+ *
+ * Uses overlay series resolution (2+ workspaces). Falls back to a single
+ * workspace (the active one) if no overlay is active.
+ *
+ * @param {Array} days — active workspace day objects (for date labels)
+ * @param {Array|null} series — overlay series [{id,name,days}] or null
+ * @returns {{labels:Array<string>, rows:Array<{wsId:string,wsName:string,tokenShare:Array<number>,costShare:Array<number>,delta:Array<number>}>}}
+ */
+function tokenVsCostShareDivergence(days, series) {
+  var s = series && series.length >= 2 ? series : null;
+  var labels = [];
+  var rows = [];
+
+  if (!s) {
+    // Single workspace: trivially 100/100 for every day — not interesting,
+    // but keep the interface consistent.
+    if (!days || !days.length) return { labels: [], rows: [] };
+    labels = days.map(function(d) { return d.label || fmtDate(d.date); });
+    rows.push({
+      wsId: 'single',
+      wsName: 'Active',
+      tokenShare: days.map(function() { return 100; }),
+      costShare: days.map(function() { return 100; }),
+      delta: days.map(function() { return 0; })
+    });
+    return { labels: labels, rows: rows };
+  }
+
+  // Align by date: build a date→index map from the first series
+  var dateList = s[0].days.map(function(d) { return normalizeDate(d.date); });
+  labels = dateList.map(function(d) { return fmtDate(d); });
+
+  // For each workspace, extract tokens and cost per aligned date
+  var wsData = s.map(function(ws) {
+    var dayMap = {};
+    ws.days.forEach(function(d) {
+      var nd = normalizeDate(d.date);
+      if (nd) {
+        dayMap[nd] = {
+          tokens: d.total_tokens || 0,
+          cost: d.cost_csv != null ? d.cost_csv : (d.cost_tokens || 0)
+        };
+      }
+    });
+    return { id: ws.id, name: ws.name, dayMap: dayMap };
+  });
+
+  for (var di = 0; di < dateList.length; di++) {
+    var dt = dateList[di];
+    var totalTokens = 0;
+    var totalCost = 0;
+    for (var wi = 0; wi < wsData.length; wi++) {
+      var entry = wsData[wi].dayMap[dt];
+      if (entry) {
+        totalTokens += entry.tokens;
+        totalCost += entry.cost;
+      }
+    }
+    for (var wj = 0; wj < wsData.length; wj++) {
+      var e = wsData[wj].dayMap[dt];
+      var tok = e ? e.tokens : 0;
+      var cst = e ? e.cost : 0;
+      if (!rows[wj]) {
+        rows[wj] = {
+          wsId: wsData[wj].id,
+          wsName: wsData[wj].name,
+          tokenShare: [],
+          costShare: [],
+          delta: []
+        };
+      }
+      rows[wj].tokenShare.push(totalTokens > 0 ? (tok / totalTokens * 100) : 0);
+      rows[wj].costShare.push(totalCost > 0 ? (cst / totalCost * 100) : 0);
+      var ts = totalTokens > 0 ? (tok / totalTokens * 100) : 0;
+      var cs = totalCost > 0 ? (cst / totalCost * 100) : 0;
+      rows[wj].delta.push(cs - ts);
+    }
+  }
+
+  return { labels: labels, rows: rows };
+}
+
+/**
+ * weekdayShape(days, series) → per-workspace avg usage by weekday (0=Sun..6=Sat),
+ * normalized to index=100 at each workspace's max weekday.
+ *
+ * Uses overlay series when available (2+ workspaces); falls back to active
+ * workspace days. Returns one row per workspace with 7 data points (Sun..Sat).
+ *
+ * @param {Array} days — active workspace day objects
+ * @param {Array|null} series — overlay series or null
+ * @returns {{labels:Array<string>, rows:Array<{wsId:string,wsName:string,data:Array<number>}>}}
+ */
+function weekdayShape(days, series) {
+  var s = series && series.length >= 2 ? series : null;
+  var labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var rows = [];
+
+  var sources;
+  if (s) {
+    sources = s.map(function(ws) {
+      return { id: ws.id, name: ws.name, days: ws.days };
+    });
+  } else {
+    if (!days || !days.length) return { labels: labels, rows: [] };
+    sources = [{ id: 'single', name: 'Active', days: days }];
+  }
+
+  for (var si = 0; si < sources.length; si++) {
+    var wsDays = sources[si].days;
+    var sums = [0, 0, 0, 0, 0, 0, 0];
+    var counts = [0, 0, 0, 0, 0, 0, 0];
+    for (var di = 0; di < wsDays.length; di++) {
+      var norm = normalizeDate(wsDays[di].date);
+      if (!norm) continue;
+      var dow = new Date(norm + 'T00:00:00').getDay(); // 0=Sun
+      sums[dow] += wsDays[di].total_tokens || 0;
+      counts[dow]++;
+    }
+    // Average per weekday that has data
+    var avgs = [0, 0, 0, 0, 0, 0, 0];
+    var maxAvg = 0;
+    for (var wdi = 0; wdi < 7; wdi++) {
+      if (counts[wdi] > 0) {
+        avgs[wdi] = sums[wdi] / counts[wdi];
+        if (avgs[wdi] > maxAvg) maxAvg = avgs[wdi];
+      }
+    }
+    // Normalize to 100 at max
+    var normalized = [0, 0, 0, 0, 0, 0, 0];
+    if (maxAvg > 0) {
+      for (var ni = 0; ni < 7; ni++) {
+        normalized[ni] = (avgs[ni] / maxAvg) * 100;
+      }
+    }
+    rows.push({
+      wsId: sources[si].id,
+      wsName: sources[si].name,
+      data: normalized
+    });
+  }
+
+  return { labels: labels, rows: rows };
+}
+
+/**
+ * cpmDrift(days, modelFilter) → cost-per-million-tokens per week per model.
+ * cost = sum(price*amount) from token_usage, tokens = sum(cache_hit + cache_miss + output).
+ * CPM = cost * 1e6 / tokens.
+ *
+ * Uses groupByWeek to bucket days into weeks. When modelFilter is 'all',
+ * produces one series per model; when a specific model is selected, produces
+ * a single series for that model.
+ *
+ * @param {Array} days — day objects from getDailyData
+ * @param {string} modelFilter — 'all' or a model name
+ * @returns {{labels:Array<string>, rows:Array<{model:string,data:Array<number|null>}>}}
+ */
+function cpmDrift(days, modelFilter) {
+  if (!days || !days.length) return { labels: [], rows: [] };
+
+  // Collect all models present in byModel
+  var modelSet = {};
+  for (var di = 0; di < days.length; di++) {
+    if (days[di].byModel) {
+      for (var m in days[di].byModel) {
+        if (days[di].byModel.hasOwnProperty(m)) modelSet[m] = true;
+      }
+    }
+  }
+  var models;
+  if (modelFilter && modelFilter !== 'all') {
+    models = modelSet[modelFilter] ? [modelFilter] : [];
+  } else {
+    models = Object.keys(modelSet).sort();
+  }
+  if (!models.length) return { labels: [], rows: [] };
+
+  // Group days by ISO week
+  var weeks = groupByWeek(days);
+  var labels = weeks.map(function(w) { return w.label; });
+
+  var rows = [];
+  for (var mi = 0; mi < models.length; mi++) {
+    var model = models[mi];
+    var data = [];
+    for (var wi = 0; wi < weeks.length; wi++) {
+      var weekDate = weeks[wi].date; // ISO week start
+      var cost = 0;
+      var tokens = 0;
+      for (var dj = 0; dj < days.length; dj++) {
+        if (getISOWeekStart(days[dj].date) !== weekDate) continue;
+        var bm = days[dj].byModel && days[dj].byModel[model];
+        if (bm) {
+          cost += bm.cost || 0;
+          tokens += (bm.cache_hit || 0) + (bm.cache_miss || 0) + (bm.output || 0);
+        }
+      }
+      if (tokens > 0) {
+        data.push((cost * 1e6) / tokens);
+      } else {
+        data.push(null);
+      }
+    }
+    rows.push({ model: model, data: data });
+  }
+
+  return { labels: labels, rows: rows };
+}
+
+/**
+ * cacheHitRatio(days) → daily cache-hit ratio (0–100%).
+ * ratio = cache_hit / (cache_hit + cache_miss) * 100.
+ * Returns per-day values aligned to the day array.
+ *
+ * @param {Array} days — day objects from getDailyData
+ * @returns {{labels:Array<string>, data:Array<number|null>}}
+ */
+function cacheHitRatio(days) {
+  if (!days || !days.length) return { labels: [], data: [] };
+  var labels = days.map(function(d) { return d.label || fmtDate(d.date); });
+  var data = [];
+  for (var i = 0; i < days.length; i++) {
+    var hit = days[i].cache_hit || 0;
+    var miss = days[i].cache_miss || 0;
+    if (hit + miss > 0) {
+      data.push((hit / (hit + miss)) * 100);
+    } else {
+      data.push(null);
+    }
+  }
+  return { labels: labels, data: data };
+}
+
+/**
+ * projectionCrossings(series) → detect projected spend crossing points between
+ * workspace pairs. Uses projectFit (linear) per workspace on the spend series,
+ * then finds the first future index where workspace B overtakes A.
+ *
+ * @param {Array} series — overlay series [{id,name,days}]
+ * @param {number} [horizon=90] — projection horizon in days
+ * @returns {{labels:Array<string>, projections:Array<{wsId:string,wsName:string,data:Array<number|null>}>}, crossings:Array<{aId:string,bId:string,aName:string,bName:string,crossIndex:number}>}
+ */
+function projectionCrossings(series, horizon) {
+  var h = horizon || 90;
+  if (!series || series.length < 2) return { labels: [], projections: [], crossings: [] };
+
+  // Build spend series per workspace
+  var wsData = series.map(function(ws) {
+    var cost = ws.days.map(function(d) {
+      return d.cost_csv != null ? d.cost_csv : (d.cost_tokens || 0);
+    });
+    return { id: ws.id, name: ws.name, cost: cost };
+  });
+
+  // Date labels from the first workspace
+  var dateLabels = series[0].days.map(function(d) { return normalizeDate(d.date); });
+  var histLen = dateLabels.length;
+
+  // Project each workspace forward
+  var projections = [];
+  for (var i = 0; i < wsData.length; i++) {
+    var proj = projectFit(wsData[i].cost, h, 'linear');
+    // Build aligned data: nulls for history, then projected values
+    var data = new Array(histLen).fill(null);
+    // Bridge: set last historical point so the line connects
+    if (histLen > 0 && wsData[i].cost.length > 0) {
+      data[histLen - 1] = wsData[i].cost[wsData[i].cost.length - 1];
+    }
+    for (var p = 0; p < proj.length; p++) {
+      data.push(proj[p]);
+    }
+    projections.push({
+      wsId: wsData[i].id,
+      wsName: wsData[i].name,
+      data: data
+    });
+  }
+
+  // Extend date labels for the projection horizon
+  var allLabels = dateLabels.slice();
+  if (histLen > 0) {
+    var lastDate = new Date(dateLabels[dateLabels.length - 1] + 'T00:00:00');
+    for (var li = 0; li < h; li++) {
+      lastDate = new Date(lastDate.getTime() + 24 * 60 * 60 * 1000);
+      allLabels.push(lastDate.toISOString().slice(0, 10));
+    }
+  }
+
+  // Detect crossings between every pair of projected lines
+  var crossings = [];
+  for (var ai = 0; ai < projections.length; ai++) {
+    for (var bi = ai + 1; bi < projections.length; bi++) {
+      var aData = projections[ai].data;
+      var bData = projections[bi].data;
+      for (var ci = histLen; ci < aData.length; ci++) {
+        // We want the first index where B overtakes A (B > A after A was >= B)
+        var aVal = aData[ci];
+        var bVal = bData[ci];
+        if (aVal == null || bVal == null) continue;
+        // Check if they cross: previously A >= B and now B > A, or vice versa
+        if (ci > 0) {
+          var aPrev = aData[ci - 1];
+          var bPrev = bData[ci - 1];
+          if (aPrev != null && bPrev != null) {
+            if (aPrev >= bPrev && bVal > aVal) {
+              // B overtakes A
+              crossings.push({
+                aId: projections[ai].wsId,
+                bId: projections[bi].wsId,
+                aName: projections[ai].wsName,
+                bName: projections[bi].wsName,
+                crossIndex: ci
+              });
+              break; // first crossing only
+            }
+            if (bPrev >= aPrev && aVal > bVal) {
+              // A overtakes B
+              crossings.push({
+                aId: projections[bi].wsId,
+                bId: projections[ai].wsId,
+                aName: projections[bi].wsName,
+                bName: projections[ai].wsName,
+                crossIndex: ci
+              });
+              break; // first crossing only
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return { labels: allLabels, projections: projections, crossings: crossings };
+}
+
+/**
+ * renderInsightGallery() → renders the currently selected insight view on
+ * canvas #cInsight. Respects current model/key/period filters and workspace
+ * multi-select. Called from refreshAll() and on insight-view button click.
+ */
+function renderInsightGallery() {
+  destroyChart('insight');
+  var ctx = document.getElementById('cInsight');
+  if (!ctx) return;
+
+  var period = document.getElementById('periodSelect').value || 'all';
+  var modelFilter = document.getElementById('modelSelect').value || 'all';
+  var keyFilter = document.getElementById('keySelect').value || 'all';
+
+  var days = _currentDays;
+  var series = _overlaySeries;
+
+  var tick = { color: chartTickColor(), font: { size: chartFontSize() } };
+  var datasets = [];
+  var labels = [];
+  var scalesX = { ticks: { ...tick, maxTicksLimit: 14 }, grid: { color: chartGridColor() } };
+  var scalesY = { ticks: { ...tick, callback: function(v) { return Number(v).toFixed(0) + '%'; } }, grid: { color: chartGridColor() }, title: { display: true, text: 'Share (%)', color: chartTickColor(), font: { size: chartFontSize() } }, min: 0, max: 100 };
+
+  if (_insightView === 'shareDivergence') {
+    var div = tokenVsCostShareDivergence(days, series);
+    labels = div.labels;
+    var divColors = OVERLAY_WS_COLORS;
+    div.rows.forEach(function(row, ri) {
+      var base = divColors[ri % divColors.length];
+      datasets.push({
+        type: 'line', label: row.wsName + ' — Token Share',
+        data: row.tokenShare, borderColor: base,
+        backgroundColor: base + '15', fill: false,
+        tension: 0.3, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2
+      });
+      datasets.push({
+        type: 'line', label: row.wsName + ' — Cost Share',
+        data: row.costShare, borderColor: base + 'aa',
+        backgroundColor: base + '08', fill: false,
+        borderDash: [4, 4], tension: 0.3, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2
+      });
+      // Divergence markers: when |delta| grows monotonically over last 7 days,
+      // draw a point marker on the cost-share series at the last day.
+      if (row.delta.length >= 8) {
+        var last7 = row.delta.slice(-7);
+        var abs7 = last7.map(function(d) { return Math.abs(d); });
+        var growing = true;
+        for (var gi = 1; gi < abs7.length; gi++) {
+          if (abs7[gi] <= abs7[gi - 1]) { growing = false; break; }
+        }
+        if (growing && abs7[abs7.length - 1] > 0.5) {
+          // Marker point on the cost share at the last day
+          var markerData = new Array(row.costShare.length).fill(null);
+          markerData[markerData.length - 1] = row.costShare[row.costShare.length - 1];
+          datasets.push({
+            type: 'scatter', label: row.wsName + ' — Diverging',
+            data: markerData,
+            pointBackgroundColor: base, pointBorderColor: '#ffffff',
+            pointRadius: 7, pointHoverRadius: 9, pointBorderWidth: 2,
+            showLine: false
+          });
+        }
+      }
+    });
+    scalesY.title.text = 'Share (%)';
+  } else if (_insightView === 'weekdayShape') {
+    var shape = weekdayShape(days, series);
+    labels = shape.labels;
+    var wsColors = OVERLAY_WS_COLORS;
+    shape.rows.forEach(function(row, ri) {
+      var base = wsColors[ri % wsColors.length];
+      datasets.push({
+        type: 'line', label: row.wsName,
+        data: row.data, borderColor: base,
+        backgroundColor: base + '20', fill: false,
+        tension: 0.35, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2
+      });
+    });
+    scalesY.title.text = 'Normalized Usage (100 = peak weekday)';
+    scalesY.min = 0;
+    scalesY.max = 110;
+  } else if (_insightView === 'cpmDrift') {
+    var drift = cpmDrift(days, modelFilter);
+    labels = drift.labels;
+    var dColors = ['#4c6ef5','#39d2c0','#a371f7','#d2991d','#f85149','#3fb950','#f778ba','#79c0ff','#d2a8ff','#ffa657','#56d364','#db6d28'];
+    drift.rows.forEach(function(row, ri) {
+      var base = dColors[ri % dColors.length];
+      datasets.push({
+        type: 'line', label: row.model,
+        data: row.data, borderColor: base,
+        backgroundColor: base + '15', fill: false,
+        tension: 0.3, pointRadius: 3, pointHoverRadius: 5, borderWidth: 2,
+        spanGaps: true
+      });
+    });
+    scalesY = { ticks: { ...tick, callback: function(v) { return '$' + Number(v).toFixed(2); } }, grid: { color: chartGridColor() }, title: { display: true, text: 'Cost per Million Tokens ($)', color: chartTickColor(), font: { size: chartFontSize() } } };
+  } else if (_insightView === 'cacheRatio') {
+    var chr = cacheHitRatio(days);
+    labels = chr.labels;
+    datasets.push({
+      type: 'line', label: 'Cache Hit Ratio',
+      data: chr.data, borderColor: '#39d2c0',
+      backgroundColor: 'rgba(57,210,192,0.18)', fill: true,
+      tension: 0.3, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2
+    });
+    scalesY.title.text = 'Cache Hit Ratio (%)';
+    scalesY.min = 0;
+    scalesY.max = 100;
+  } else if (_insightView === 'crossingMarkers') {
+    var cross = projectionCrossings(series, getSelectedHorizon());
+    labels = cross.labels;
+    var cColors = OVERLAY_WS_COLORS;
+    cross.projections.forEach(function(proj, pi) {
+      var base = cColors[pi % cColors.length];
+      datasets.push({
+        type: 'line', label: proj.wsName + ' (projected)',
+        data: proj.data, borderColor: base,
+        backgroundColor: base + '10', fill: false,
+        borderDash: [8, 4], tension: 0.3, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2
+      });
+    });
+    // Crossing markers as scatter points
+    cross.crossings.forEach(function(c, ci) {
+      var markerColor = '#f85149';
+      // Find the value at the crossing index — either workspace's projection
+      var projB = cross.projections.find(function(p) { return p.wsId === c.bId; });
+      if (projB && projB.data[c.crossIndex] != null) {
+        var markerData = new Array(labels.length).fill(null);
+        markerData[c.crossIndex] = projB.data[c.crossIndex];
+        datasets.push({
+          type: 'scatter', label: c.bName + ' overtakes ' + c.aName,
+          data: markerData,
+          pointBackgroundColor: markerColor, pointBorderColor: '#ffffff',
+          pointRadius: 8, pointHoverRadius: 10, pointBorderWidth: 2,
+          showLine: false
+        });
+      }
+    });
+    scalesY = { ticks: { ...tick, callback: function(v) { return fmtUSD(v); } }, grid: { color: chartGridColor() }, title: { display: true, text: 'Daily Spend (projected)', color: chartTickColor(), font: { size: chartFontSize() } } };
+  }
+
+  charts.insight = new Chart(ctx, {
+    type: 'line',
+    data: { labels: labels, datasets: datasets },
+    options: {
+      ...chartCommonOptions(), aspectRatio: 2.0,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: chartLegendOptions(), tooltip: { ...chartTooltipOptions(), callbacks: { label: function(c) {
+        if (c.dataset.type === 'scatter') return c.dataset.label;
+        var val = c.parsed.y;
+        if (_insightView === 'cpmDrift') return c.dataset.label + ': $' + Number(val).toFixed(2) + '/M';
+        if (_insightView === 'crossingMarkers') return c.dataset.label + ': ' + fmtUSD(val);
+        if (_insightView === 'cacheRatio') return c.dataset.label + ': ' + Number(val).toFixed(1) + '%';
+        return c.dataset.label + ': ' + Number(val).toFixed(1) + '%';
+      } } } },
+      scales: { x: scalesX, y: scalesY }
+    }
+  });
 }
 
 // -- Anomaly Detection --
@@ -3293,6 +3807,29 @@ document.getElementById('horizonSelect')?.addEventListener('change', function() 
 document.getElementById('quarterSelect')?.addEventListener('change', function() {
   renderQuarterDrilldown(_currentDays, this.value);
 });
+
+// DSD-GAP-047: Insights Gallery view toggle
+document.querySelectorAll('#insightsControls button[data-insight]').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    _insightView = btn.dataset.insight;
+    try { localStorage.setItem(INSIGHT_LS_KEY, _insightView); } catch(e) {}
+    // Update active button styling
+    document.querySelectorAll('#insightsControls button[data-insight]').forEach(function(b) {
+      b.classList.toggle('accent', b === btn);
+    });
+    renderInsightGallery();
+  });
+});
+// Restore saved insight view
+try {
+  var savedInsight = localStorage.getItem(INSIGHT_LS_KEY);
+  if (savedInsight) {
+    _insightView = savedInsight;
+    document.querySelectorAll('#insightsControls button[data-insight]').forEach(function(b) {
+      b.classList.toggle('accent', b.dataset.insight === savedInsight);
+    });
+  }
+} catch(e) {}
 
 // Drop zone
 const dz = document.getElementById('dropZone');

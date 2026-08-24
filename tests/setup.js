@@ -81,6 +81,9 @@ const funcNames = [
   'normalizeIndex', 'buildOverlayTokenDatasets', 'buildOverlaySpendDatasets',
   'getSelectedWorkspaceIds', 'getOverlayNormalized', 'getWorkspaceName',
   'overlayTooltipLabel',
+  // DSD-GAP-047: implicit-insights gallery helpers
+  'tokenVsCostShareDivergence', 'weekdayShape', 'cpmDrift', 'cacheHitRatio',
+  'projectionCrossings', 'renderInsightGallery',
 ];
 
 for (const name of funcNames) {

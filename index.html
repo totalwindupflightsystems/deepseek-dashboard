@@ -177,6 +177,23 @@
       <div class="chart-card wide qoq-panel-card"><h3>Quarter-over-Quarter Comparison</h3><div id="qoqPanel" class="qoq-panel"></div></div>
     </div>
 
+    <!-- DSD-GAP-047: Insights Gallery -->
+    <div class="chart-grid" id="insightsGrid">
+      <div class="chart-card wide">
+        <div class="chart-header">
+          <h3>Insights Gallery</h3>
+        </div>
+        <div class="insights-controls" id="insightsControls">
+          <button class="btn-sm accent" data-insight="shareDivergence">Share Divergence</button>
+          <button class="btn-sm" data-insight="weekdayShape">Weekday Shape</button>
+          <button class="btn-sm" data-insight="cpmDrift">Cost/M Drift</button>
+          <button class="btn-sm" data-insight="cacheRatio">Cache Ratio</button>
+          <button class="btn-sm" data-insight="crossingMarkers">Crossings</button>
+        </div>
+        <div class="chart-wrap"><canvas id="cInsight"></canvas></div>
+      </div>
+    </div>
+
     <!-- Raw Data -->
     <div class="data-section" id="dataSection">
       <h3>Raw Data <span class="row-count" id="rowCount"></span></h3>
