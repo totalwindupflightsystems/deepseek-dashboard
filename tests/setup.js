@@ -77,6 +77,10 @@ const funcNames = [
   'computeQoQ', 'renderQuarterlyChart', 'renderQoQPanel',
   'populateQuarterSelect', 'getSelectedQuarter', 'filterDaysByQuarter',
   'renderQuarterDrilldown',
+  // DSD-GAP-046: multi-workspace overlay helpers
+  'normalizeIndex', 'buildOverlayTokenDatasets', 'buildOverlaySpendDatasets',
+  'getSelectedWorkspaceIds', 'getOverlayNormalized', 'getWorkspaceName',
+  'overlayTooltipLabel',
 ];
 
 for (const name of funcNames) {

@@ -6,6 +6,9 @@ let activeWsId = null;
 let charts = {};
 let _currentDays = [];
 let _groupedDays = [];
+// DSD-GAP-046: [{ id, name, days }] — per-workspace series when 2+ workspaces
+// are selected in overlay mode; null in single-workspace mode.
+let _overlaySeries = null;
 const IDB_NAME = 'deepseek-dashboard';
 const IDB_STORE = 'sqlite-db';
 const DEBOUNCE_MS = 300;
@@ -759,10 +762,14 @@ function queryPeriod(period) {
   return ['1','1'];
 }
 
-function getDailyData(period, model, key) {
+// DSD-GAP-046: optional explicit workspaceId — overlay mode queries one series
+// per selected workspace while the single-workspace path (wsId omitted) keeps
+// its existing behavior keyed on activeWsId.
+function getDailyData(period, model, key, wsId) {
+  const wid = wsId || activeWsId;
   const [start, end] = queryPeriod(period);
   let where = 'workspace_id = ? AND utc_date >= ? AND utc_date <= ?';
-  const params = [activeWsId, start, end];
+  const params = [wid, start, end];
   if (model && model !== 'all') { where += ' AND model = ?'; params.push(model); }
   if (key && key !== 'all') { where += ' AND api_key_name = ?'; params.push(key); }
 
@@ -803,7 +810,7 @@ function getDailyData(period, model, key) {
   // cost-only exports (where token_usage may be empty) still get a cost figure.
   if (!key || key === 'all') {
     let cdWhere = 'workspace_id = ? AND utc_date >= ? AND utc_date <= ?';
-    const cdParams = [activeWsId, start, end];
+    const cdParams = [wid, start, end];
     if (model && model !== 'all') { cdWhere += ' AND model = ?'; cdParams.push(model); }
     const cdRows = db.exec(`SELECT utc_date, model, SUM(cost) as total_cost FROM cost_daily WHERE ${cdWhere} GROUP BY utc_date, model`, cdParams);
     if (cdRows.length) {
@@ -822,6 +829,7 @@ function getDailyData(period, model, key) {
 }
 
 const GRANULARITY_LS_KEY = 'ds-dash-granularity';
+const OVERLAY_LS_KEY = 'ds-dash-overlay-normalize';
 const TREND_LS_KEY = 'ds-dash-trend';
 const PROJECTION_LS_KEY = 'ds-dash-projection';
 const HORIZON_LS_KEY = 'ds-dash-horizon';
@@ -1922,7 +1930,24 @@ async function refreshAll() {
   const granularity = document.getElementById('granularitySelect')?.value || 'daily';
   const chartDays = groupDays(days, granularity);
   _groupedDays = chartDays;
-  if (!days.length) {
+
+  // DSD-GAP-046: multi-workspace overlay — when 2+ workspaces are selected in
+  // the switcher, gather one (grouped) series per workspace, reusing the same
+  // period/model/key filters, for the token + spend overlay charts. The other
+  // renderers (KPIs, pie, ratio, per-key, quarterly) stay on the active
+  // workspace by design.
+  const wsIds = getSelectedWorkspaceIds();
+  if (wsIds.length >= 2) {
+    _overlaySeries = wsIds.map(id => ({
+      id,
+      name: getWorkspaceName(id),
+      days: groupDays(getDailyData(period, modelFilter, keyFilter, id), granularity)
+    }));
+  } else {
+    _overlaySeries = null;
+  }
+
+  if (!days.length && !(_overlaySeries && _overlaySeries.some(s => s.days.length))) {
     document.getElementById('kpiGrid').innerHTML = '<div style="color:var(--text-dim);padding:20px">' + emptyStateMessage(workspaceHasData(), period) + '</div>';
     ['tokens','spend','modelPie','ratio','key','modelDist'].forEach(k => destroyChart(k));
     document.getElementById('topSpend').innerHTML = '';
@@ -2057,9 +2082,196 @@ function chartCommonOptions() {
   };
 }
 
-function renderTokenChart(days) {
+// ─────────────────────────────────────────────
+// DSD-GAP-046: Multi-workspace overlay charting
+// ─────────────────────────────────────────────
+
+// Per-workspace palette: each workspace gets a hue; within a workspace the
+// input/total series is solid and the output series is translucent + dashed.
+const OVERLAY_WS_COLORS = ['#4c6ef5','#39d2c0','#a371f7','#d2991d','#f85149','#3fb950','#f778ba','#79c0ff','#ffa657','#56d364','#db6d28','#d2a8ff'];
+
+/**
+ * getOverlayNormalized() → whether the "Normalize (index=100)" checkbox is
+ * checked. Only meaningful in overlay mode (2+ workspaces selected).
+ * @returns {boolean}
+ */
+function getOverlayNormalized() {
+  const cb = document.getElementById('overlayToggle');
+  return !!(cb && cb.checked);
+}
+
+/**
+ * getSelectedWorkspaceIds() → ids of the workspace options currently selected
+ * in the multi-select switcher. Empty string placeholder (No Workspace) is
+ * excluded, so a single selection yields a 1-element array.
+ * @returns {Array<string>}
+ */
+function getSelectedWorkspaceIds() {
+  const sel = document.getElementById('wsSelect');
+  if (!sel) return [];
+  return Array.from(sel.selectedOptions).map(o => o.value).filter(v => v);
+}
+
+/**
+ * getWorkspaceName(id) → display name for a workspace id (falls back to the
+ * id itself when the workspace no longer exists).
+ * @param {string} id
+ * @returns {string}
+ */
+function getWorkspaceName(id) {
+  const ws = getWorkspaces().find(w => w.id === id);
+  return ws ? ws.name : id;
+}
+
+/**
+ * normalizeIndex(values) → index series where the FIRST NON-ZERO value maps
+ * to 100 and every other value is scaled by the same factor, so differently
+ * sized series become shape-comparable. Null/undefined entries (e.g. the
+ * projection gap) pass through untouched; an all-zero or empty series is
+ * returned unchanged (no meaningful base).
+ * @param {Array<number|null>} values
+ * @returns {Array<number|null>}
+ */
+function normalizeIndex(values) {
+  if (!values || !values.length) return values ? values.slice() : [];
+  let base = null;
+  for (const v of values) {
+    const n = Number(v);
+    if (Number.isFinite(n) && n !== 0) { base = n; break; }
+  }
+  if (base == null) return values.slice();
+  const scale = 100 / base;
+  return values.map(v => {
+    if (v == null || v === '') return v;
+    const n = Number(v);
+    return Number.isFinite(n) ? n * scale : v;
+  });
+}
+
+/**
+ * buildOverlayTokenDatasets(series, normalized) → Chart.js datasets for the
+ * Token Usage chart in overlay mode: one Input/Output pair per workspace,
+ * labels prefixed with the workspace name, shared x axis. When `normalized`
+ * is true each dataset's values are the index=100 series (raw values are
+ * kept on `_raw` so tooltips can still show real numbers).
+ * @param {Array<{name:string, days:Array}>} series
+ * @param {boolean} normalized
+ * @returns {Array<Object>}
+ */
+function buildOverlayTokenDatasets(series, normalized) {
+  const datasets = [];
+  (series || []).forEach((s, i) => {
+    const base = OVERLAY_WS_COLORS[i % OVERLAY_WS_COLORS.length];
+    const input = s.days.map(d => (d.cache_hit || 0) + (d.cache_miss || 0));
+    const output = s.days.map(d => d.output || 0);
+    const inputData = normalized ? normalizeIndex(input) : input;
+    const outputData = normalized ? normalizeIndex(output) : output;
+    datasets.push({
+      label: s.name + ' — Input Tokens',
+      data: inputData,
+      _raw: input,
+      borderColor: base,
+      backgroundColor: base + '22',
+      fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 4, hoverBorderWidth: 2
+    });
+    datasets.push({
+      label: s.name + ' — Output Tokens',
+      data: outputData,
+      _raw: output,
+      borderColor: base + 'cc',
+      backgroundColor: base + '0d',
+      borderDash: [4, 4],
+      fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 4, hoverBorderWidth: 2
+    });
+  });
+  return datasets;
+}
+
+/**
+ * buildOverlaySpendDatasets(series, normalized) → Chart.js datasets for the
+ * Daily Spend chart in overlay mode: one per-workspace daily-cost line on
+ * shared axes. Normalized mode scales each series to index=100 at its first
+ * non-zero day (raw values kept on `_raw` for tooltips).
+ * @param {Array<{name:string, days:Array}>} series
+ * @param {boolean} normalized
+ * @returns {Array<Object>}
+ */
+function buildOverlaySpendDatasets(series, normalized) {
+  const datasets = [];
+  (series || []).forEach((s, i) => {
+    const base = OVERLAY_WS_COLORS[i % OVERLAY_WS_COLORS.length];
+    const cost = s.days.map(d => (d.cost_csv != null ? d.cost_csv : (d.cost_tokens || 0)));
+    datasets.push({
+      type: 'line',
+      label: s.name + ' — Daily Cost',
+      data: normalized ? normalizeIndex(cost) : cost,
+      _raw: cost,
+      borderColor: base,
+      backgroundColor: base + '22',
+      fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 4, hoverBorderWidth: 2
+    });
+  });
+  return datasets;
+}
+
+/**
+ * overlayTooltipLabel(ctx) → tooltip label for overlay datasets: dataset
+ * label + the REAL value (from `_raw`) even when the plotted series is the
+ * normalized index.
+ * @param {Object} ctx — Chart.js tooltip callback context
+ * @param {string} kind — 'tokens' or 'spend'
+ * @returns {string}
+ */
+function overlayTooltipLabel(ctx, kind) {
+  const raw = ctx.dataset._raw && ctx.dataset._raw[ctx.dataIndex] != null
+    ? ctx.dataset._raw[ctx.dataIndex]
+    : ctx.parsed.y;
+  return ctx.dataset.label + ': ' + (kind === 'tokens' ? fmtTok(raw) + ' tokens' : fmtUSD(raw));
+}
+
+/**
+ * resolveOverlaySeries(days, series) → the effective per-workspace series for
+ * a chart render. Explicit param wins; otherwise the module-level series set
+ * by refreshAll (so trend/projection/normalize re-render handlers keep the
+ * overlay intact without changing their call sites).
+ * @param {Array} days — active workspace (grouped) days, used for labels
+ * @param {Array|null|undefined} series
+ * @returns {{series:Array|null, isOverlay:boolean}}
+ */
+function resolveOverlaySeries(series) {
+  const s = series || _overlaySeries;
+  return { series: s, isOverlay: !!(s && s.length >= 2) };
+}
+
+// DSD-GAP-046: optional per-workspace series param. With 2+ workspaces the
+// chart switches to overlay mode (per-workspace series on shared axes,
+// optional index=100 normalization). Single-workspace rendering below is
+// unchanged byte-for-byte.
+function renderTokenChart(days, series) {
   destroyChart('tokens');
   const ctx = document.getElementById('cTokens').getContext('2d');
+
+  const overlay = resolveOverlaySeries(series);
+  if (overlay.isOverlay) {
+    const normalized = getOverlayNormalized();
+    const datasets = buildOverlayTokenDatasets(overlay.series, normalized);
+    var chartLabels = days.map(d => d.label || fmtDate(d.date));
+    const scales = normalized
+      ? chartScalesOptions('Index (100 = first non-zero day)', v => Number(v).toFixed(0))
+      : chartScalesOptions('Tokens', v => fmtTok(v));
+    charts.tokens = new Chart(ctx, {
+      type: 'line',
+      data: { labels: chartLabels, datasets },
+      options: {
+        ...chartCommonOptions(), aspectRatio: 2.2,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: chartLegendOptions(), tooltip: { ...chartTooltipOptions(), callbacks: { label: c => overlayTooltipLabel(c, 'tokens') } } },
+        scales
+      }
+    });
+    return;
+  }
+
   const inputColor = '#4c6ef5';
   const outputColor = '#39d2c0';
   const datasets = [
@@ -2182,9 +2394,38 @@ function renderModelDistChart(days) {
   });
 }
 
-function renderSpendChart(days) {
+// DSD-GAP-046: optional per-workspace series param. With 2+ workspaces the
+// stacked per-model bars switch to per-workspace daily-cost lines on shared
+// axes (optional index=100 normalization). Single-workspace rendering below
+// is unchanged byte-for-byte.
+function renderSpendChart(days, series) {
   destroyChart('spend');
   const ctx = document.getElementById('cSpend').getContext('2d');
+
+  const overlay = resolveOverlaySeries(series);
+  if (overlay.isOverlay) {
+    const normalized = getOverlayNormalized();
+    const datasets = buildOverlaySpendDatasets(overlay.series, normalized);
+    var spendLabels = days.map(d => d.label || fmtDate(d.date));
+    const scales = {
+      x: { ticks: { color: chartTickColor(), font: { size: chartFontSize() }, maxTicksLimit: 14 }, grid: { color: chartGridColor() } },
+      y: normalized
+        ? { ticks: { color: chartTickColor(), font: { size: chartFontSize() }, callback: v => Number(v).toFixed(0) }, grid: { color: chartGridColor() }, title: { display: true, text: 'Index (100 = first non-zero day)', color: chartTickColor(), font: { size: chartFontSize() } } }
+        : { ticks: { color: chartTickColor(), font: { size: chartFontSize() }, callback: v => fmtUSD(v) }, grid: { color: chartGridColor() }, title: { display: true, text: 'Cost', color: chartTickColor(), font: { size: chartFontSize() } } }
+    };
+    charts.spend = new Chart(ctx, {
+      type: 'line',
+      data: { labels: spendLabels, datasets },
+      options: {
+        ...chartCommonOptions(), aspectRatio: 1.6,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: chartLegendOptions(), tooltip: { ...chartTooltipOptions(), callbacks: { label: c => overlayTooltipLabel(c, 'spend') } } },
+        scales
+      }
+    });
+    return;
+  }
+
   const labels = days.map(d => d.label || fmtDate(d.date));
   const models = [...new Set(days.flatMap(d => Object.keys(d.byModel)))];
   const baseColors = ['#4c6ef5','#39d2c0','#a371f7','#d2991d','#f85149','#3fb950'];
@@ -2894,6 +3135,19 @@ async function switchWorkspace(id) {
   }
 }
 
+// DSD-GAP-046: overlay mode — 2+ workspaces selected. The first id becomes the
+// active workspace (drives KPIs/filters/period options); the token + spend
+// charts render one series per selected workspace on shared axes.
+async function switchWorkspaces(ids) {
+  if (!ids || !ids.length) return switchWorkspace(null);
+  activeWsId = ids[0];
+  document.getElementById('noWs').style.display = 'none';
+  document.getElementById('activeContent').style.display = 'block';
+  Object.values(charts).forEach(c => c.destroy()); charts = {};
+  _destroyVScroll();
+  await refreshAll();
+}
+
 function updateTableScrollIndicator() {
   const wrap = document.querySelector('.table-wrap');
   if (!wrap) return;
@@ -2905,6 +3159,9 @@ function updateTableScrollIndicator() {
 function refreshWsList() {
   const workspaces = getWorkspaces();
   const sel = document.getElementById('wsSelect');
+  // DSD-GAP-046: preserve an active multi-selection across a list rebuild
+  // (rename/delete re-renders the options) so overlay mode survives.
+  const prevSelected = [...sel.selectedOptions].map(o => o.value).filter(v => v && workspaces.some(w => w.id === v));
   sel.innerHTML = workspaces.map(w => '<option value="' + escapeHtml(w.id) + '">' + escapeHtml(w.name) + '</option>').join('');
   if (!workspaces.length) {
     sel.innerHTML = '<option value="">No Workspace</option>';
@@ -2913,6 +3170,9 @@ function refreshWsList() {
     switchWorkspace(workspaces[0].id);
   }
   sel.value = activeWsId || '';
+  if (prevSelected.length >= 2) {
+    Array.from(sel.options).forEach(o => { if (prevSelected.includes(o.value)) o.selected = true; });
+  }
 }
 
 // -- Modal --
@@ -2928,7 +3188,13 @@ function showModal(title, placeholder, cb) {
 function hideModal() { document.getElementById('modalOverlay').classList.remove('show'); modalCallback = null; }
 
 // -- Event Bindings --
-document.getElementById('wsSelect').addEventListener('change', function() { switchWorkspace(this.value); });
+// DSD-GAP-046: multi-select workspace switcher — 2+ selected ids switch to
+// overlay mode; a single selection keeps the classic single-workspace path.
+document.getElementById('wsSelect').addEventListener('change', function() {
+  const ids = getSelectedWorkspaceIds();
+  if (ids.length >= 2) switchWorkspaces(ids);
+  else switchWorkspace(ids[0] || null);
+});
 document.getElementById('wsNewBtn').addEventListener('click', () => {
   showModal('Create Workspace', 'e.g. Personal, Work, Team', (name) => {
     const id = createWorkspace(name); refreshWsList(); switchWorkspace(id); toast('Workspace created');
@@ -2985,6 +3251,16 @@ document.getElementById('granularitySelect')?.addEventListener('change', functio
 document.getElementById('trendSelect')?.addEventListener('change', function() {
   try { localStorage.setItem(TREND_LS_KEY, this.value); } catch(e) {}
   // Re-render charts without full refresh (keeps period/model/key/granularity)
+  const chartDays = _groupedDays.length ? _groupedDays : _currentDays;
+  if (chartDays.length) {
+    renderTokenChart(chartDays);
+    renderSpendChart(chartDays);
+  }
+});
+
+// DSD-GAP-046: Persist normalize preference and re-render charts on change
+document.getElementById('overlayToggle')?.addEventListener('change', function() {
+  try { localStorage.setItem(OVERLAY_LS_KEY, this.checked ? '1' : '0'); } catch(e) {}
   const chartDays = _groupedDays.length ? _groupedDays : _currentDays;
   if (chartDays.length) {
     renderTokenChart(chartDays);
@@ -3305,6 +3581,12 @@ async function init() {
       const trendSel = document.getElementById('trendSelect');
       if (trendSel) trendSel.value = savedTrend;
     }
+  } catch(e) {}
+  // DSD-GAP-046: Restore normalize (index=100) preference
+  try {
+    const savedOverlay = localStorage.getItem(OVERLAY_LS_KEY);
+    const overlayCb = document.getElementById('overlayToggle');
+    if (overlayCb && savedOverlay === '1') overlayCb.checked = true;
   } catch(e) {}
   // DSD-GAP-044: Restore projection and horizon preferences
   try {
