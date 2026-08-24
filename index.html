@@ -52,7 +52,7 @@
         <div class="drop-progress-track"><div class="drop-progress-bar" style="width:0%"></div></div>
         <span class="drop-progress-label"></span>
       </div>
-      <div class="drop-help">Expected format: a DeepSeek usage ZIP export containing CSV files (e.g. <code>amount-YYYY-M.csv</code> / <code>cost-YYYY-M.csv</code> with columns <code>utc_date</code>, <code>model</code>, <code>type</code>, <code>price</code>, <code>amount</code>).</div>
+      <div class="drop-help">Expected format: a DeepSeek usage ZIP export containing CSV files. Two layouts are supported: the original <code>amount-YYYY-M.csv</code> / <code>cost-YYYY-M.csv</code> with a <code>utc_date</code> column, and the newer <code>amount-YYYY-MM-DD_YYYY-MM-DD.csv</code> / <code>cost-YYYY-MM-DD_YYYY-MM-DD.csv</code> with <code>start_time_iso</code> / <code>end_time_iso</code> columns (date is derived from <code>start_time_iso</code>). Amount columns: <code>model</code>, <code>api_key_name</code>, <code>type</code>, <code>price</code>, <code>amount</code>. Cost columns: <code>model</code>, <code>wallet_type</code>, <code>cost</code>, <code>currency</code>.</div>
     </div>
 
     <!-- Upload History -->

@@ -255,6 +255,13 @@ function initSchema() {
     id INTEGER PRIMARY KEY AUTOINCREMENT, workspace_id TEXT NOT NULL,
     utc_date TEXT NOT NULL, model TEXT NOT NULL, cost REAL NOT NULL,
     currency TEXT DEFAULT 'USD', upload_id TEXT NOT NULL)`);
+  // DSD-GAP-042: wallet_type column for the new start_time_iso export format.
+  // Guarded ALTER so existing IndexedDB databases upgrade in place.
+  try {
+    const cols = db.exec('PRAGMA table_info(cost_daily)');
+    const hasWallet = cols.length && cols[0].values.some(r => r[1] === 'wallet_type');
+    if (!hasWallet) db.run('ALTER TABLE cost_daily ADD COLUMN wallet_type TEXT');
+  } catch(_) { /* table_info or ALTER failed — column may already exist */ }
   db.run(`CREATE TABLE IF NOT EXISTS uploads (
     id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, filename TEXT,
     uploaded_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -470,6 +477,16 @@ async function _processSingleFile(file, progressCb) {
 
   if (!amountRows.length && !costRows.length) throw new Error('No amount-*/cost-* CSV found in archive');
 
+  // DSD-GAP-042: new export format (start_time_iso / end_time_iso) has no
+  // utc_date column. Derive utc_date from the date part of start_time_iso
+  // (e.g. "2026-07-25T00:00:00-05:00" → "2026-07-25") for both amount and cost.
+  for (const r of amountRows) {
+    if (!r.utc_date && r.start_time_iso) r.utc_date = r.start_time_iso.slice(0, 10);
+  }
+  for (const r of costRows) {
+    if (!r.utc_date && r.start_time_iso) r.utc_date = r.start_time_iso.slice(0, 10);
+  }
+
   // Normalize date format: YYYYMMDD → YYYY-MM-DD (DeepSeek changed formats mid-2026)
   for (const r of amountRows) {
     if (r.utc_date && /^\d{8}$/.test(r.utc_date)) {
@@ -551,10 +568,10 @@ async function _processSingleFile(file, progressCb) {
     stmtTok.free();
 
     // Insert cost rows
-    const stmtCost = db.prepare('INSERT INTO cost_daily (workspace_id, utc_date, model, cost, currency, upload_id) VALUES (?,?,?,?,?,?)');
+    const stmtCost = db.prepare('INSERT INTO cost_daily (workspace_id, utc_date, model, cost, currency, wallet_type, upload_id) VALUES (?,?,?,?,?,?,?)');
     for (const r of costRows) {
       if (!r.utc_date || !r.model) continue;
-      stmtCost.run([activeWsId, r.utc_date, r.model, parseFloat(r.cost)||0, r.currency||'USD', uploadId]);
+      stmtCost.run([activeWsId, r.utc_date, r.model, parseFloat(r.cost)||0, r.currency||'USD', r.wallet_type||'', uploadId]);
       costCount++;
       rowsDone++;
       if ((rowsDone & 511) === 0) cb({ phase: 'inserting', fileName: file.name, rowsDone, rowsTotal: totalRows });
