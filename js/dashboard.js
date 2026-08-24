@@ -822,6 +822,198 @@ function getDailyData(period, model, key) {
 }
 
 const GRANULARITY_LS_KEY = 'ds-dash-granularity';
+const TREND_LS_KEY = 'ds-dash-trend';
+
+// ─────────────────────────────────────────────
+// DSD-GAP-043: Trend charting helpers
+// ─────────────────────────────────────────────
+
+/**
+ * groupByWeek(days) → array of { date, label, total_tokens, cost } summed per ISO week.
+ * Reuses getISOWeekStart for week boundary detection. Sorted ascending.
+ * @param {Array} days — day objects with { date, total_tokens, cost_csv, cost_tokens }
+ * @returns {Array<{date:string,label:string,total_tokens:number,cost:number}>}
+ */
+function groupByWeek(days) {
+  if (!days || !days.length) return [];
+  const groups = {};
+  for (const d of days) {
+    const key = getISOWeekStart(d.date);
+    if (!groups[key]) {
+      groups[key] = { date: key, label: key, total_tokens: 0, cost: 0 };
+    }
+    groups[key].total_tokens += d.total_tokens || 0;
+    groups[key].cost += d.cost_csv != null ? d.cost_csv : (d.cost_tokens || 0);
+  }
+  return Object.values(groups).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * rollingMean(values, window=7) → array of numbers aligned 1:1 with input.
+ * Partial-window policy: for index i, average of values[max(0, i-window+1) .. i]
+ * (i.e. as many points as available up to `window` size, starting from index 0).
+ * Non-numeric entries (null/undefined/NaN) are treated as 0 and counted.
+ * @param {Array<number>} values
+ * @param {number} [window=7]
+ * @returns {Array<number>}
+ */
+function rollingMean(values, window) {
+  const w = window || 7;
+  if (!values || values.length === 0) return [];
+  const result = new Array(values.length);
+  let sum = 0;
+  let count = 0;
+  for (let i = 0; i < values.length; i++) {
+    const v = Number(values[i]);
+    if (Number.isFinite(v)) { sum += v; count++; }
+    const head = i - w;
+    if (head >= 0) {
+      const hv = Number(values[head]);
+      if (Number.isFinite(hv)) { sum -= hv; count--; }
+    }
+    result[i] = count > 0 ? sum / count : 0;
+  }
+  return result;
+}
+
+/**
+ * growthRate(days) → day-over-day % change series.
+ * First point is null (no previous day). Subsequent = (today - yesterday)/yesterday * 100.
+ * Handles yesterday === 0 → null (avoids division by zero).
+ * @param {Array} days — day objects with { date, total_tokens, cost_csv, cost_tokens }
+ * @param {string} [field='total_tokens']
+ * @returns {Array<number|null>}
+ */
+function growthRate(days, field) {
+  const f = field || 'total_tokens';
+  if (!days || !days.length) return [];
+  const result = new Array(days.length);
+  const getVal = (d) => d[f] != null ? d[f] : (d.cost_csv != null ? d.cost_csv : (d.cost_tokens || 0));
+  for (let i = 0; i < days.length; i++) {
+    if (i === 0) { result[i] = null; continue; }
+    const prev = getVal(days[i - 1]);
+    const cur = getVal(days[i]);
+    if (prev === 0) { result[i] = null; continue; }
+    result[i] = ((cur - prev) / prev) * 100;
+  }
+  return result;
+}
+
+/**
+ * Build Chart.js line-dataset overlays for the token & spend charts based on
+ * the selected trend type. Returns an array of Chart.js dataset objects.
+ *
+ * @param {Array} days — grouped day objects (what the charts already render)
+ * @param {Array} rawDays — original daily series (before groupDays) used for
+ *   trend helpers that need daily resolution
+ * @param {string} trendType — one of: 'none','rolling7','weeklySum','weeklyAvg','perModel','growth'
+ * @param {string} chartType — 'tokens' or 'spend'
+ * @returns {Array} Chart.js datasets to push (may be empty)
+ */
+function buildTrendDatasets(days, rawDays, trendType, chartType) {
+  if (!days || !days.length || !trendType || trendType === 'none') return [];
+
+  const trendColor = chartType === 'tokens' ? '#f778ba' : '#d2a8ff';
+  const isGrowth = trendType === 'growth';
+
+  if (trendType === 'rolling7') {
+    const source = rawDays && rawDays.length ? rawDays : days;
+    const vals = source.map(d => chartType === 'tokens' ? d.total_tokens : (d.cost_csv != null ? d.cost_csv : (d.cost_tokens || 0)));
+    const smoothed = rollingMean(vals, 7);
+    // Align by index to grouped labels if days.length === smoothed.length,
+    // otherwise align by ratio (map index proportionally)
+    let aligned;
+    if (smoothed.length === days.length) {
+      aligned = smoothed;
+    } else {
+      aligned = days.map((_, i) => {
+        const srcIdx = Math.floor(i * smoothed.length / days.length);
+        return smoothed[srcIdx];
+      });
+    }
+    return [{
+      type: 'line', label: '7-Day Rolling Avg', data: aligned,
+      borderColor: trendColor, backgroundColor: trendColor + '20',
+      fill: false, borderDash: [6, 4], tension: 0.3, pointRadius: 0,
+      pointHoverRadius: 4, order: 1
+    }];
+  }
+
+  if (trendType === 'weeklySum' || trendType === 'weeklyAvg') {
+    const source = rawDays && rawDays.length ? rawDays : days;
+    const weeks = groupByWeek(source);
+    if (!weeks.length) return [];
+    // Align weekly values to the chart's day labels by finding the week each day falls into
+    const weekMap = {};
+    for (const w of weeks) { weekMap[w.date] = w; }
+    const data = days.map(d => {
+      const wk = weekMap[getISOWeekStart(d.date)] || weekMap[getISOWeekStart(d.label || d.date)];
+      if (!wk) return null;
+      if (trendType === 'weeklySum') return chartType === 'tokens' ? wk.total_tokens : wk.cost;
+      // weekly avg = week sum / number of days in that week present in source
+      const daysInWeek = source.filter(s => getISOWeekStart(s.date) === wk.date).length || 1;
+      return chartType === 'tokens' ? wk.total_tokens / daysInWeek : wk.cost / daysInWeek;
+    });
+    return [{
+      type: 'line', label: trendType === 'weeklySum' ? 'Weekly Sum' : 'Weekly Avg',
+      data, borderColor: trendColor, backgroundColor: trendColor + '20',
+      fill: false, borderDash: [6, 4], tension: 0.3, pointRadius: 0,
+      pointHoverRadius: 4, order: 1
+    }];
+  }
+
+  if (trendType === 'perModel') {
+    const baseColors = ['#4c6ef5','#39d2c0','#a371f7','#d2991d','#f85149','#3fb950','#f778ba','#79c0ff','#d2a8ff','#ffa657','#56d364','#db6d28'];
+    const models = [...new Set(days.flatMap(d => Object.keys(d.byModel || {})))];
+    if (!models.length) return [];
+    return models.map((m, i) => {
+      const base = baseColors[i % baseColors.length];
+      return {
+        type: 'line', label: m + ' Trend',
+        data: days.map(d => {
+          const v = d.byModel?.[m];
+          return v ? (chartType === 'tokens' ? v.tokens : (v.input_cost + v.output_cost || v.cost || 0)) : null;
+        }),
+        borderColor: base, backgroundColor: base + '20',
+        fill: false, borderDash: [4, 4], tension: 0.3, pointRadius: 0,
+        pointHoverRadius: 4, order: 1
+      };
+    });
+  }
+
+  if (trendType === 'growth') {
+    const source = rawDays && rawDays.length ? rawDays : days;
+    const field = chartType === 'tokens' ? 'total_tokens' : 'cost_csv';
+    const rates = growthRate(source, field);
+    // Align by index
+    let aligned;
+    if (rates.length === days.length) {
+      aligned = rates;
+    } else {
+      aligned = days.map((_, i) => {
+        const srcIdx = Math.floor(i * rates.length / days.length);
+        return rates[srcIdx];
+      });
+    }
+    return [{
+      type: 'line', label: 'Day-over-Day Growth %', data: aligned,
+      borderColor: trendColor, backgroundColor: trendColor + '20',
+      fill: false, borderDash: [6, 4], tension: 0.3, pointRadius: 0,
+      pointHoverRadius: 4, order: 1
+    }];
+  }
+
+  return [];
+}
+
+/**
+ * Returns the currently selected trend type from the trendSelect control.
+ * @returns {string}
+ */
+function getSelectedTrend() {
+  const sel = document.getElementById('trendSelect');
+  return sel ? (sel.value || 'none') : 'none';
+}
 
 function getISOWeekStart(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
@@ -1079,14 +1271,32 @@ function renderTokenChart(days) {
     }
   }
 
+  // DSD-GAP-043: Trend overlays
+  const trendType = getSelectedTrend();
+  const granularity = document.getElementById('granularitySelect')?.value || 'daily';
+  // Trend overlays compute from the ORIGINAL daily series; only apply when daily
+  // granularity so alignment is unambiguous (documented behavior).
+  if (trendType !== 'none' && granularity === 'daily') {
+    const trendDatasets = buildTrendDatasets(days, _currentDays, trendType, 'tokens');
+    datasets.push(...trendDatasets);
+  }
+
+  const isGrowth = trendType === 'growth' && granularity === 'daily';
+  const tooltipCb = isGrowth
+    ? ctx => ctx.dataset.label + ': ' + (ctx.parsed.y == null ? '—' : ctx.parsed.y.toFixed(1) + '%')
+    : ctx => ctx.dataset.label + ': ' + fmtTok(ctx.parsed.y) + ' tokens';
+  const scales = isGrowth
+    ? { ...chartScalesOptions('Tokens', v => fmtTok(v)), yGrowth: { position: 'right', ticks: { color: chartTickColor(), font: { size: chartFontSize() }, callback: v => v.toFixed(0) + '%' }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Growth %', color: chartTickColor(), font: { size: chartFontSize() } } } }
+    : chartScalesOptions('Tokens', v => fmtTok(v));
+
   charts.tokens = new Chart(ctx, {
     type: 'line',
     data: { labels: days.map(d => d.label || fmtDate(d.date)), datasets },
     options: {
       ...chartCommonOptions(), aspectRatio: 2.2,
       interaction: { mode: 'index', intersect: false },
-      plugins: { legend: chartLegendOptions(), tooltip: { ...chartTooltipOptions(), callbacks: { label: ctx => ctx.dataset.label + ': ' + fmtTok(ctx.parsed.y) + ' tokens' } } },
-      scales: chartScalesOptions('Tokens', v => fmtTok(v))
+      plugins: { legend: chartLegendOptions(), tooltip: { ...chartTooltipOptions(), callbacks: { label: tooltipCb } } },
+      scales
     }
   });
 }
@@ -1182,18 +1392,35 @@ function renderSpendChart(days) {
     }
   }
 
+  // DSD-GAP-043: Trend overlays
+  const trendType = getSelectedTrend();
+  const granularity = document.getElementById('granularitySelect')?.value || 'daily';
+  if (trendType !== 'none' && granularity === 'daily') {
+    const trendDatasets = buildTrendDatasets(days, _currentDays, trendType, 'spend');
+    datasets.push(...trendDatasets);
+  }
+
+  const isGrowth = trendType === 'growth' && granularity === 'daily';
+  const tooltipCb = isGrowth
+    ? ctx => ctx.dataset.label + ': ' + (ctx.parsed.y == null ? '—' : ctx.parsed.y.toFixed(1) + '%')
+    : ctx => ctx.dataset.label + ': ' + fmtUSD(ctx.parsed.y);
+
   const tick = { color: chartTickColor(), font: { size: chartFontSize() } };
+  const scales = {
+    x: { stacked: true, ticks: { ...tick, maxTicksLimit: 14 }, grid: { color: chartGridColor() } },
+    y: { stacked: true, ticks: { ...tick, callback: v => fmtUSD(v) }, grid: { color: chartGridColor() } }
+  };
+  if (isGrowth) {
+    scales.yGrowth = { position: 'right', stacked: false, ticks: { color: chartTickColor(), font: { size: chartFontSize() }, callback: v => v.toFixed(0) + '%' }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Growth %', color: chartTickColor(), font: { size: chartFontSize() } } };
+  }
   charts.spend = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets },
     options: {
       ...chartCommonOptions(), aspectRatio: 1.6,
       plugins: { legend: { labels: { color: chartTickColor(), usePointStyle: true, padding: 8, font: { size: chartFontSize() } } },
-        tooltip: { ...chartTooltipOptions(), callbacks: { label: ctx => ctx.dataset.label + ': ' + fmtUSD(ctx.parsed.y) } } },
-      scales: {
-        x: { stacked: true, ticks: { ...tick, maxTicksLimit: 14 }, grid: { color: chartGridColor() } },
-        y: { stacked: true, ticks: { ...tick, callback: v => fmtUSD(v) }, grid: { color: chartGridColor() } }
-      }
+        tooltip: { ...chartTooltipOptions(), callbacks: { label: tooltipCb } } },
+      scales
     }
   });
 }
@@ -1894,6 +2121,17 @@ document.getElementById('granularitySelect')?.addEventListener('change', functio
   try { localStorage.setItem(GRANULARITY_LS_KEY, this.value); } catch(e) {}
 });
 
+// DSD-GAP-043: Persist trend preference and re-render charts on change
+document.getElementById('trendSelect')?.addEventListener('change', function() {
+  try { localStorage.setItem(TREND_LS_KEY, this.value); } catch(e) {}
+  // Re-render charts without full refresh (keeps period/model/key/granularity)
+  const chartDays = _groupedDays.length ? _groupedDays : _currentDays;
+  if (chartDays.length) {
+    renderTokenChart(chartDays);
+    renderSpendChart(chartDays);
+  }
+});
+
 // Drop zone
 const dz = document.getElementById('dropZone');
 dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
@@ -2172,6 +2410,14 @@ async function init() {
     const saved = localStorage.getItem(GRANULARITY_LS_KEY);
     if (saved && ['daily','weekly','monthly'].includes(saved)) {
       document.getElementById('granularitySelect').value = saved;
+    }
+  } catch(e) {}
+  // DSD-GAP-043: Restore trend preference
+  try {
+    const savedTrend = localStorage.getItem(TREND_LS_KEY);
+    if (savedTrend) {
+      const trendSel = document.getElementById('trendSelect');
+      if (trendSel) trendSel.value = savedTrend;
     }
   } catch(e) {}
   try {

@@ -66,6 +66,8 @@ const funcNames = [
   'filterRowsBySearch',
   'renderTable',
   'formatType',
+  // DSD-GAP-043: trend helpers
+  'groupByWeek', 'rollingMean', 'growthRate', 'buildTrendDatasets',
 ];
 
 for (const name of funcNames) {
