@@ -330,3 +330,8 @@ tr:hover td { background: var(--bg-card-hover); }
   .rate-controls { flex-direction: column; align-items: stretch; }
   .rate-custom-inputs.show { flex-wrap: wrap; }
 }
+
+/* DSD-GAP-044: Projection summary */
+.projection-summary { display: flex; flex-wrap: wrap; gap: 16px; padding: 8px 0; font-size: 0.82rem; color: var(--text-dim); }
+.projection-summary .proj-summary-item { white-space: nowrap; }
+.projection-summary .proj-summary-item strong { color: var(--text-bright); }

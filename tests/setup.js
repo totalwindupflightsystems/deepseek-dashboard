@@ -68,6 +68,10 @@ const funcNames = [
   'formatType',
   // DSD-GAP-043: trend helpers
   'groupByWeek', 'rollingMean', 'growthRate', 'buildTrendDatasets',
+  // DSD-GAP-044: projection helpers
+  'linreg', 'expfit', 'projectFit', 'projectConfidenceBand',
+  'computeQuarterProjection', 'getSelectedProjection', 'getSelectedHorizon',
+  'buildProjectionDatasets', 'renderProjectionSummary',
 ];
 
 for (const name of funcNames) {

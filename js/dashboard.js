@@ -823,6 +823,8 @@ function getDailyData(period, model, key) {
 
 const GRANULARITY_LS_KEY = 'ds-dash-granularity';
 const TREND_LS_KEY = 'ds-dash-trend';
+const PROJECTION_LS_KEY = 'ds-dash-projection';
+const HORIZON_LS_KEY = 'ds-dash-horizon';
 
 // ─────────────────────────────────────────────
 // DSD-GAP-043: Trend charting helpers
@@ -897,6 +899,359 @@ function growthRate(days, field) {
     result[i] = ((cur - prev) / prev) * 100;
   }
   return result;
+}
+
+// ─────────────────────────────────────────────
+// DSD-GAP-044: Projection Engine — linear least-squares
+// and exponential fit, horizon projection, confidence band,
+// and quarter-over-quarter projection summary.
+// ─────────────────────────────────────────────
+
+/**
+ * linreg(ys) → { slope, intercept, r2 } via ordinary least squares.
+ * x indices are 0..n-1. Returns slope=0,intercept=mean,r2=0 for degenerate input.
+ * @param {Array<number>} ys
+ * @returns {{slope:number,intercept:number,r2:number}}
+ */
+function linreg(ys) {
+  var n = ys ? ys.length : 0;
+  if (!n) return { slope: 0, intercept: 0, r2: 0 };
+  var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+  for (var i = 0; i < n; i++) {
+    var y = Number(ys[i]);
+    if (!Number.isFinite(y)) y = 0;
+    sumX += i;
+    sumY += y;
+    sumXY += i * y;
+    sumX2 += i * i;
+  }
+  var denomX = n * sumX2 - sumX * sumX;
+  if (denomX === 0) return { slope: 0, intercept: sumY / n, r2: 0 };
+  var slope = (n * sumXY - sumX * sumY) / denomX;
+  var intercept = (sumY - slope * sumX) / n;
+  // r²
+  var meanY = sumY / n;
+  var ssTot = 0, ssRes = 0;
+  for (var j = 0; j < n; j++) {
+    var yj = Number(ys[j]);
+    if (!Number.isFinite(yj)) yj = 0;
+    var pred = slope * j + intercept;
+    ssTot += (yj - meanY) * (yj - meanY);
+    ssRes += (yj - pred) * (yj - pred);
+  }
+  var r2 = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
+  if (r2 < 0) r2 = 0;
+  return { slope: slope, intercept: intercept, r2: r2 };
+}
+
+/**
+ * expfit(ys) → { a, b, r2 } fitting y = a * e^(b*x) via log-linearization.
+ * If any y <= 0, that point is skipped (log undefined). If no positive points,
+ * returns a degenerate fit with r2=0. r2 is computed in log-space.
+ * @param {Array<number>} ys
+ * @returns {{a:number,b:number,r2:number}}
+ */
+function expfit(ys) {
+  var n = ys ? ys.length : 0;
+  if (!n) return { a: 0, b: 0, r2: 0 };
+  var xs = [], lns = [];
+  for (var i = 0; i < n; i++) {
+    var y = Number(ys[i]);
+    if (Number.isFinite(y) && y > 0) {
+      xs.push(i);
+      lns.push(Math.log(y));
+    }
+  }
+  if (xs.length < 2) return { a: 0, b: 0, r2: 0 };
+  var m = xs.length;
+  var sumX = 0, sumLn = 0, sumXLn = 0, sumX2 = 0;
+  for (var j = 0; j < m; j++) {
+    sumX += xs[j];
+    sumLn += lns[j];
+    sumXLn += xs[j] * lns[j];
+    sumX2 += xs[j] * xs[j];
+  }
+  var denom = m * sumX2 - sumX * sumX;
+  if (denom === 0) return { a: Math.exp(sumLn / m), b: 0, r2: 0 };
+  var b = (m * sumXLn - sumX * sumLn) / denom;
+  var lnA = (sumLn - b * sumX) / m;
+  var a = Math.exp(lnA);
+  // r2 in log space
+  var meanLn = sumLn / m;
+  var ssTot = 0, ssRes = 0;
+  for (var k = 0; k < m; k++) {
+    var pred = lnA + b * xs[k];
+    ssTot += (lns[k] - meanLn) * (lns[k] - meanLn);
+    ssRes += (lns[k] - pred) * (lns[k] - pred);
+  }
+  var r2 = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
+  if (r2 < 0) r2 = 0;
+  return { a: a, b: b, r2: r2 };
+}
+
+/**
+ * projectFit(ys, horizon, fitType) → array of `horizon` projected values
+ * extending the series forward.
+ * @param {Array<number>} ys — historical series
+ * @param {number} horizon — number of points to project forward
+ * @param {string} fitType — 'linear' or 'exponential'
+ * @returns {Array<number>}
+ */
+function projectFit(ys, horizon, fitType) {
+  if (!ys || !ys.length || horizon <= 0) return [];
+  var n = ys.length;
+  if (fitType === 'exponential') {
+    var ef = expfit(ys);
+    if (ef.a === 0 && ef.b === 0) {
+      // Fallback to linear if exp fit degenerate
+      var lf0 = linreg(ys);
+      var out0 = [];
+      for (var h0 = 0; h0 < horizon; h0++) out0.push(lf0.slope * (n + h0) + lf0.intercept);
+      return out0;
+    }
+    var out = [];
+    for (var h = 0; h < horizon; h++) out.push(ef.a * Math.exp(ef.b * (n + h)));
+    return out;
+  }
+  // linear (default)
+  var lf = linreg(ys);
+  var res = [];
+  for (var i = 0; i < horizon; i++) res.push(lf.slope * (n + i) + lf.intercept);
+  return res;
+}
+
+/**
+ * projectConfidenceBand(ys, horizon, fitType) → { upper, lower } arrays of
+ * length `horizon`. The band widens with horizon: width at step h is
+ * stdDev * sqrt(1 + h/n) * 1.96 (95% prediction interval approximation).
+ * @param {Array<number>} ys — historical series
+ * @param {number} horizon
+ * @param {string} fitType — 'linear' or 'exponential'
+ * @returns {{upper:Array<number>,lower:Array<number>}}
+ */
+function projectConfidenceBand(ys, horizon, fitType) {
+  if (!ys || !ys.length || horizon <= 0) return { upper: [], lower: [] };
+  var n = ys.length;
+  // Compute residuals and stdDev in the appropriate space
+  var residuals = [];
+  if (fitType === 'exponential') {
+    var ef = expfit(ys);
+    for (var i = 0; i < n; i++) {
+      var yv = Number(ys[i]);
+      if (Number.isFinite(yv) && yv > 0) {
+        residuals.push(yv - ef.a * Math.exp(ef.b * i));
+      }
+    }
+  } else {
+    var lf = linreg(ys);
+    for (var j = 0; j < n; j++) {
+      residuals.push(Number(ys[j]) - (lf.slope * j + lf.intercept));
+    }
+  }
+  var dof = Math.max(residuals.length - 2, 1);
+  var variance = residuals.reduce(function(s, r) { return s + r * r; }, 0) / dof;
+  var stdDev = Math.sqrt(variance);
+  var projected = projectFit(ys, horizon, fitType);
+  var upper = [], lower = [];
+  for (var h = 0; h < horizon; h++) {
+    var expansion = stdDev * Math.sqrt(1 + (h + 1) / n) * 1.96;
+    upper.push(projected[h] + expansion);
+    // Clamp lower at 0 — tokens/cost can't be negative
+    lower.push(Math.max(0, projected[h] - expansion));
+  }
+  return { upper: upper, lower: lower };
+}
+
+/**
+ * computeQuarterProjection(days, fitType) → {
+ *   currentQuarterTotal, projectedNextQuarterTotal, fitType, fitR2
+ * }
+ * Sums the current quarter's total tokens (or cost) and projects the next
+ * quarter using the selected fit. Uses the daily series for fitting.
+ * @param {Array} days — day objects with { date, total_tokens, cost_csv, cost_tokens }
+ * @param {string} fitType — 'linear' or 'exponential'
+ * @param {string} chartType — 'tokens' or 'spend'
+ * @returns {{currentQuarterTotal:number,projectedNextQuarterTotal:number,fitType:string,fitR2:number}}
+ */
+function computeQuarterProjection(days, fitType, chartType) {
+  if (!days || !days.length) return { currentQuarterTotal: 0, projectedNextQuarterTotal: 0, fitType: fitType, fitR2: 0 };
+  var getVal = function(d) {
+    return chartType === 'tokens'
+      ? d.total_tokens
+      : (d.cost_csv != null ? d.cost_csv : (d.cost_tokens || 0));
+  };
+  var values = days.map(getVal);
+  // Determine current quarter from last data point date
+  var lastDate = days[days.length - 1].date;
+  var yr = parseInt(lastDate.slice(0, 4));
+  var mo = parseInt(lastDate.slice(5, 7));
+  var qStartMonth = Math.floor((mo - 1) / 3) * 3 + 1; // 1,4,7,10
+  // Sum current quarter: Q spans months qStartMonth..qStartMonth+2
+  var currentQuarterTotal = 0;
+  var qMonths = [qStartMonth, qStartMonth + 1, qStartMonth + 2].map(function(m) {
+    return yr + '-' + String(m).padStart(2, '0');
+  });
+  for (var i = 0; i < days.length; i++) {
+    var mon = days[i].date.slice(0, 7);
+    if (qMonths.indexOf(mon) !== -1) {
+      currentQuarterTotal += getVal(days[i]);
+    }
+  }
+  // Project next quarter (~90 days)
+  var projected = projectFit(values, 90, fitType);
+  var nextQuarterTotal = projected.reduce(function(s, v) { return s + v; }, 0);
+  // r2 from the fit
+  var r2;
+  if (fitType === 'exponential') {
+    r2 = expfit(values).r2;
+  } else {
+    r2 = linreg(values).r2;
+  }
+  return {
+    currentQuarterTotal: currentQuarterTotal,
+    projectedNextQuarterTotal: nextQuarterTotal,
+    fitType: fitType,
+    fitR2: r2
+  };
+}
+
+/**
+ * getSelectedProjection() → 'none' | 'linear' | 'exponential'
+ * @returns {string}
+ */
+function getSelectedProjection() {
+  var sel = document.getElementById('projectionSelect');
+  return sel ? (sel.value || 'none') : 'none';
+}
+
+/**
+ * getSelectedHorizon() → 30 or 90 (default 30)
+ * @returns {number}
+ */
+function getSelectedHorizon() {
+  var sel = document.getElementById('horizonSelect');
+  if (!sel) return 30;
+  var v = parseInt(sel.value, 10);
+  return v === 90 ? 90 : 30;
+}
+
+/**
+ * Build Chart.js datasets for projection overlays on the token & spend charts.
+ * Produces a dashed projection line (with null gap from last historical point
+ * to first projected point) plus upper/lower confidence band as two filled
+ * line datasets. Uses the daily series for fitting, aligns to chart labels.
+ *
+ * @param {Array} days — grouped day objects (what the charts render)
+ * @param {Array} rawDays — original daily series (before groupDays)
+ * @param {string} fitType — 'linear' or 'exponential'
+ * @param {number} horizon — 30 or 90
+ * @param {string} chartType — 'tokens' or 'spend'
+ * @returns {Array} Chart.js datasets to push (may be empty)
+ */
+function buildProjectionDatasets(days, rawDays, fitType, horizon, chartType) {
+  if (!days || !days.length || !fitType || fitType === 'none') return [];
+  // Fit from the daily series for best resolution
+  var source = rawDays && rawDays.length ? rawDays : days;
+  var getVal = function(d) {
+    return chartType === 'tokens'
+      ? d.total_tokens
+      : (d.cost_csv != null ? d.cost_csv : (d.cost_tokens || 0));
+  };
+  var ys = source.map(getVal);
+  if (ys.length < 2) return [];
+  var projected = projectFit(ys, horizon, fitType);
+  var band = projectConfidenceBand(ys, horizon, fitType);
+  var projColor = chartType === 'tokens' ? '#ff9f1c' : '#ff6b6b';
+  var bandColor = projColor;
+
+  // Build label-aligned data arrays:
+  // Historical portion: null (projection starts after last historical point)
+  // First projected point: connect from last historical value (null gap then
+  // dashed line)
+  var n = days.length;
+  var projData = new Array(n + horizon).fill(null);
+  var upperData = new Array(n + horizon).fill(null);
+  var lowerData = new Array(n + horizon).fill(null);
+  // Connect: set the first projected point's predecessor to last historical val
+  if (n > 0) {
+    projData[n - 1] = getVal(days[n - 1]); // bridge point
+    upperData[n - 1] = getVal(days[n - 1]);
+    lowerData[n - 1] = getVal(days[n - 1]);
+  }
+  for (var h = 0; h < horizon; h++) {
+    projData[n + h] = projected[h];
+    upperData[n + h] = band.upper[h];
+    lowerData[n + h] = band.lower[h];
+  }
+
+  return [
+    {
+      type: 'line',
+      label: 'Projection (' + fitType + ', ' + horizon + 'd)',
+      data: projData,
+      borderColor: projColor,
+      backgroundColor: projColor + '20',
+      fill: false,
+      borderDash: [8, 4],
+      tension: 0.3,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      order: 0
+    },
+    {
+      type: 'line',
+      label: 'Upper Bound (95%)',
+      data: upperData,
+      borderColor: 'transparent',
+      backgroundColor: bandColor + '15',
+      fill: '+1', // fill to next dataset (lower)
+      pointRadius: 0,
+      tension: 0.3,
+      order: 0
+    },
+    {
+      type: 'line',
+      label: 'Lower Bound (95%)',
+      data: lowerData,
+      borderColor: 'transparent',
+      backgroundColor: 'transparent',
+      fill: false,
+      pointRadius: 0,
+      tension: 0.3,
+      order: 0
+    }
+  ];
+}
+
+/**
+ * Render the projection quarter summary line into #projectionSummary.
+ * Shows projected next-quarter total vs current-quarter total for both
+ * tokens and spend, using the selected fit type.
+ * @param {Array} days — daily series (rawDays / _currentDays)
+ * @param {string} fitType — 'linear' or 'exponential'
+ */
+function renderProjectionSummary(days, fitType) {
+  var el = document.getElementById('projectionSummary');
+  if (!el) return;
+  if (!days || !days.length || !fitType || fitType === 'none') {
+    el.innerHTML = '';
+    return;
+  }
+  var tokProj = computeQuarterProjection(days, fitType, 'tokens');
+  var spendProj = computeQuarterProjection(days, fitType, 'spend');
+  var tokChange = tokProj.currentQuarterTotal > 0
+    ? ((tokProj.projectedNextQuarterTotal - tokProj.currentQuarterTotal) / tokProj.currentQuarterTotal * 100).toFixed(1)
+    : '0.0';
+  var spendChange = spendProj.currentQuarterTotal > 0
+    ? ((spendProj.projectedNextQuarterTotal - spendProj.currentQuarterTotal) / spendProj.currentQuarterTotal * 100).toFixed(1)
+    : '0.0';
+  var tokArrow = parseFloat(tokChange) >= 0 ? '▲' : '▼';
+  var spendArrow = parseFloat(spendChange) >= 0 ? '▲' : '▼';
+  el.innerHTML = '<span class="proj-summary-item">Next Q Tokens: <strong>' + fmtTok(tokProj.projectedNextQuarterTotal) +
+    '</strong> vs current ' + fmtTok(tokProj.currentQuarterTotal) + ' (' + tokArrow + Math.abs(parseFloat(tokChange)) + '%)</span>' +
+    '<span class="proj-summary-item">Next Q Spend: <strong>' + fmtUSD(spendProj.projectedNextQuarterTotal) +
+    '</strong> vs current ' + fmtUSD(spendProj.currentQuarterTotal) + ' (' + spendArrow + Math.abs(parseFloat(spendChange)) + '%)</span>' +
+    '<span class="proj-summary-item">Fit r²: tokens ' + tokProj.fitR2.toFixed(3) + ', spend ' + spendProj.fitR2.toFixed(3) + '</span>';
 }
 
 /**
@@ -1194,6 +1549,9 @@ async function refreshAll() {
   // Refresh upload history
   renderUploadHistory();
 
+  // DSD-GAP-044: Projection quarter summary
+  renderProjectionSummary(days, getSelectedProjection());
+
   // Refresh raw data table
   renderTable(days, modelFilter, keyFilter);
 }
@@ -1281,6 +1639,14 @@ function renderTokenChart(days) {
     datasets.push(...trendDatasets);
   }
 
+  // DSD-GAP-044: Projection overlays (only on daily granularity)
+  const projType = getSelectedProjection();
+  if (projType !== 'none' && granularity === 'daily') {
+    const horizon = getSelectedHorizon();
+    const projDatasets = buildProjectionDatasets(days, _currentDays, projType, horizon, 'tokens');
+    datasets.push(...projDatasets);
+  }
+
   const isGrowth = trendType === 'growth' && granularity === 'daily';
   const tooltipCb = isGrowth
     ? ctx => ctx.dataset.label + ': ' + (ctx.parsed.y == null ? '—' : ctx.parsed.y.toFixed(1) + '%')
@@ -1289,9 +1655,24 @@ function renderTokenChart(days) {
     ? { ...chartScalesOptions('Tokens', v => fmtTok(v)), yGrowth: { position: 'right', ticks: { color: chartTickColor(), font: { size: chartFontSize() }, callback: v => v.toFixed(0) + '%' }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Growth %', color: chartTickColor(), font: { size: chartFontSize() } } } }
     : chartScalesOptions('Tokens', v => fmtTok(v));
 
+  // Extend labels for projection horizon
+  var projLabelCount = days.length;
+  if (projType !== 'none' && granularity === 'daily') {
+    projLabelCount = days.length + getSelectedHorizon();
+  }
+  var chartLabels = days.map(d => d.label || fmtDate(d.date));
+  if (projLabelCount > chartLabels.length) {
+    // Add projected date labels
+    var lastDate = days.length ? new Date(days[days.length - 1].date + 'T00:00:00') : new Date();
+    for (var pl = chartLabels.length; pl < projLabelCount; pl++) {
+      lastDate = new Date(lastDate.getTime() + 24 * 60 * 60 * 1000);
+      chartLabels.push(lastDate.toISOString().slice(0, 10));
+    }
+  }
+
   charts.tokens = new Chart(ctx, {
     type: 'line',
-    data: { labels: days.map(d => d.label || fmtDate(d.date)), datasets },
+    data: { labels: chartLabels, datasets },
     options: {
       ...chartCommonOptions(), aspectRatio: 2.2,
       interaction: { mode: 'index', intersect: false },
@@ -1400,6 +1781,14 @@ function renderSpendChart(days) {
     datasets.push(...trendDatasets);
   }
 
+  // DSD-GAP-044: Projection overlays (only on daily granularity)
+  const projType = getSelectedProjection();
+  if (projType !== 'none' && granularity === 'daily') {
+    const horizon = getSelectedHorizon();
+    const projDatasets = buildProjectionDatasets(days, _currentDays, projType, horizon, 'spend');
+    datasets.push(...projDatasets);
+  }
+
   const isGrowth = trendType === 'growth' && granularity === 'daily';
   const tooltipCb = isGrowth
     ? ctx => ctx.dataset.label + ': ' + (ctx.parsed.y == null ? '—' : ctx.parsed.y.toFixed(1) + '%')
@@ -1413,9 +1802,21 @@ function renderSpendChart(days) {
   if (isGrowth) {
     scales.yGrowth = { position: 'right', stacked: false, ticks: { color: chartTickColor(), font: { size: chartFontSize() }, callback: v => v.toFixed(0) + '%' }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Growth %', color: chartTickColor(), font: { size: chartFontSize() } } };
   }
+
+  // Extend labels for projection horizon
+  var spendLabels = labels;
+  if (projType !== 'none' && granularity === 'daily') {
+    spendLabels = labels.slice();
+    var lastSDate = days.length ? new Date(days[days.length - 1].date + 'T00:00:00') : new Date();
+    for (var spl = spendLabels.length; spl < days.length + getSelectedHorizon(); spl++) {
+      lastSDate = new Date(lastSDate.getTime() + 24 * 60 * 60 * 1000);
+      spendLabels.push(lastSDate.toISOString().slice(0, 10));
+    }
+  }
+
   charts.spend = new Chart(ctx, {
     type: 'bar',
-    data: { labels, datasets },
+    data: { labels: spendLabels, datasets },
     options: {
       ...chartCommonOptions(), aspectRatio: 1.6,
       plugins: { legend: { labels: { color: chartTickColor(), usePointStyle: true, padding: 8, font: { size: chartFontSize() } } },
@@ -2132,6 +2533,27 @@ document.getElementById('trendSelect')?.addEventListener('change', function() {
   }
 });
 
+// DSD-GAP-044: Persist projection preference and re-render charts on change
+document.getElementById('projectionSelect')?.addEventListener('change', function() {
+  try { localStorage.setItem(PROJECTION_LS_KEY, this.value); } catch(e) {}
+  const chartDays = _groupedDays.length ? _groupedDays : _currentDays;
+  if (chartDays.length) {
+    renderTokenChart(chartDays);
+    renderSpendChart(chartDays);
+  }
+  renderProjectionSummary(_currentDays, this.value);
+});
+
+// DSD-GAP-044: Persist horizon preference and re-render charts on change
+document.getElementById('horizonSelect')?.addEventListener('change', function() {
+  try { localStorage.setItem(HORIZON_LS_KEY, this.value); } catch(e) {}
+  const chartDays = _groupedDays.length ? _groupedDays : _currentDays;
+  if (chartDays.length) {
+    renderTokenChart(chartDays);
+    renderSpendChart(chartDays);
+  }
+});
+
 // Drop zone
 const dz = document.getElementById('dropZone');
 dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
@@ -2418,6 +2840,19 @@ async function init() {
     if (savedTrend) {
       const trendSel = document.getElementById('trendSelect');
       if (trendSel) trendSel.value = savedTrend;
+    }
+  } catch(e) {}
+  // DSD-GAP-044: Restore projection and horizon preferences
+  try {
+    const savedProj = localStorage.getItem(PROJECTION_LS_KEY);
+    if (savedProj) {
+      const projSel = document.getElementById('projectionSelect');
+      if (projSel) projSel.value = savedProj;
+    }
+    const savedHorizon = localStorage.getItem(HORIZON_LS_KEY);
+    if (savedHorizon) {
+      const horizonSel = document.getElementById('horizonSelect');
+      if (horizonSel) horizonSel.value = savedHorizon;
     }
   } catch(e) {}
   try {

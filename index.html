@@ -69,6 +69,10 @@
       <select id="granularitySelect"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select>
       <label>Trend:</label>
       <select id="trendSelect"><option value="none">None</option><option value="rolling7">7-Day Rolling Avg</option><option value="weeklySum">Weekly (Sum)</option><option value="weeklyAvg">Weekly (Avg)</option><option value="perModel">Per-Model</option><option value="growth">Day-over-Day Growth %</option></select>
+      <label>Projection:</label>
+      <select id="projectionSelect"><option value="none">None</option><option value="linear">Linear Fit</option><option value="exponential">Exponential Fit</option></select>
+      <label>Horizon:</label>
+      <select id="horizonSelect"><option value="30">30 days</option><option value="90">90 days</option></select>
       <label>Model:</label>
       <select id="modelSelect"><option value="all">All Models</option></select>
       <label>Key:</label>
@@ -80,6 +84,9 @@
 
     <!-- KPI Cards -->
     <div class="kpi-grid" id="kpiGrid"></div>
+
+    <!-- DSD-GAP-044: Projection Quarter Summary -->
+    <div id="projectionSummary" class="projection-summary"></div>
 
     <!-- Anomaly Detection Panel -->
     <div class="anomaly-section" id="anomalySection">
