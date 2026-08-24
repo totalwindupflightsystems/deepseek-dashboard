@@ -26,3 +26,9 @@
 {"from":"tests/timing-harness.js","to":"pkg:sql.js","rel":"imports","provenance":"ast_exact","confidence":1.0}
 {"from":"tests/timing-harness.js","to":"pkg:jszip","rel":"imports","provenance":"ast_exact","confidence":1.0}
 {"from":"tests/searchFilter.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/zipPipelineNewFormat.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/zipPipelineNewFormat.test.js","to":"pkg:jszip","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/zipPipelineNewFormat.test.js","to":"pkg:fs","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/zipPipelineNewFormat.test.js","to":"pkg:path","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/projection.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/trendHelpers.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
