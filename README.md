@@ -102,6 +102,14 @@ The dashboard was developed against a real June 2026 usage export; the automated
 - **174:1 prompt-to-completion ratio** (DeepSeek's massive context + aggressive caching at work)
 
 > **Note:** ZIP exports are gitignored (`*.zip`). Get your own from [DeepSeek Platform → Usage](https://platform.deepseek.com/usage) — pick a month, click Export, drag the ZIP into the dashboard.
+>
+> **Try it before trusting it with real data:** the repo commits a deterministic, format-faithful *synthetic* export in `tests/fixtures/` — the exact CSVs the automated test suite ingests. Build a sample ZIP with one command:
+>
+> ```sh
+> cd tests/fixtures && zip sample-usage.zip amount-2026-06.csv cost-2026-06.csv
+> ```
+>
+> Then drag `tests/fixtures/sample-usage.zip` into the dashboard — date normalization, dedup, and chart rendering all run identically to a real export, so you can verify the dashboard works before exporting your own usage. The fixture data is anonymous and made up, so its totals differ from the real June export figures above.
 
 ## Known Limitations
 
