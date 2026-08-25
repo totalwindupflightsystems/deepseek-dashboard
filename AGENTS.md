@@ -20,7 +20,7 @@ GitHub Pages from `main` (`totalwindupflightsystems.github.io/deepseek-dashboard
 ## Architecture
 
 - `index.html` — app shell: CSP, CDN script tags (JSZip 3.10.1, Chart.js 4.5.1,
-  sql.js 1.14.1, all with SRI `integrity` hashes), drop zone, controls, chart canvases.
+  sql.js 1.14.2, all with SRI `integrity` hashes), drop zone, controls, chart canvases.
 - `js/dashboard.js` (~1,960 lines) — all application logic: ZIP upload via
   `handleUpload`/`_processSingleFile` (JSZip.loadAsync → parseCSV routing by
   `amount-`/`cost-` filename prefix), sql.js persistence, Chart.js rendering,

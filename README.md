@@ -75,7 +75,7 @@ It's three files. Open `index.html`, `js/dashboard.js`, and `css/dashboard.css` 
 
 - **JSZip 3.10.1** — ZIP extraction (CDN, version-pinned)
 - **Chart.js 4.5.1** — Visualizations (CDN, version-pinned)
-- **sql.js 1.14.1** — SQLite persistence via IndexedDB (CDN)
+- **sql.js 1.14.2** — SQLite persistence via IndexedDB (CDN)
 - **Vanilla JS** — No framework, no build step, no bundler (npm used for vitest + jsdom testing only)
 - **CSS Grid + Flexbox** — Responsive layout, no CSS framework
 - **Testing** — Vitest + jsdom unit-test suite (run `npm test`), no runtime dependencies beyond the three CDN scripts
