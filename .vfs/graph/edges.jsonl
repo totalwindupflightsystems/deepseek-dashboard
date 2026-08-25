@@ -33,3 +33,5 @@
 {"from":"tests/projection.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
 {"from":"tests/trendHelpers.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
 {"from":"tests/quarterly.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/overlayCharts.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
+{"from":"tests/insightsGallery.test.js","to":"pkg:vitest","rel":"imports","provenance":"ast_exact","confidence":1.0}
