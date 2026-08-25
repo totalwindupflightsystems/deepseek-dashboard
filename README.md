@@ -1,6 +1,6 @@
 # DeepSeek Usage Dashboard
 
-**Your DeepSeek API usage, visualized. One HTML file. Zero servers. Nothing leaves your browser.**
+**Your DeepSeek API usage, visualized. Three files, no build step. Zero servers. Nothing leaves your browser.**
 
 ## What This Is
 
