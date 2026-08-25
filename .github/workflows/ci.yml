@@ -46,3 +46,38 @@ jobs:
         run: |
           test -f index.html || (echo "index.html missing" && exit 1)
           echo "index.html exists ($(wc -l < index.html) lines, $(wc -c < index.html) bytes)"
+
+      - name: Verify CDN SRI hashes
+        run: |
+          set -euo pipefail
+          fail=0
+          # Extract only <script> tags carrying an integrity attribute (CDN tags)
+          while IFS= read -r line; do
+            src=$(printf '%s' "$line" | grep -oP 'src="\K[^"]*')
+            integrity=$(printf '%s' "$line" | grep -oP 'integrity="\K[^"]*')
+            algo="${integrity%%-*}"
+            expected="${integrity#*-}"
+            echo "Checking: $src"
+            body=$(mktemp)
+            if ! curl -fsSL -o "$body" "$src"; then
+              echo "  FAIL: could not fetch $src (HTTP error or network failure)"
+              fail=1
+              rm -f "$body"
+              continue
+            fi
+            actual=$(openssl dgst -"$algo" -binary "$body" | base64 -w0)
+            rm -f "$body"
+            if [ "$actual" = "$expected" ]; then
+              echo "  PASS: $algo matches (${actual:0:24}...)"
+            else
+              echo "  FAIL: $algo mismatch"
+              echo "    expected: $expected"
+              echo "    actual:   $actual"
+              fail=1
+            fi
+          done < <(grep '<script' index.html | grep 'integrity=')
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::SRI verification failed — CDN asset hash mismatch or dead URL detected"
+            exit 1
+          fi
+          echo "SRI verification PASSED — all CDN assets verified"
