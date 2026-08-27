@@ -14,10 +14,10 @@ This dashboard fixes that. Drag in your DeepSeek usage ZIP. Get charts, trends, 
 
 - All parsing, aggregation, and charting is client-side JavaScript
 - No analytics, no telemetry, no CDN calls that phone home
-- CDN imports (JSZip, Chart.js, sql.js) are the only external requests — all are version-pinned
+- CDN imports (JSZip, Chart.js, sql.js) are the only external requests — all are version-pinned, and the sql.js wasm engine is sha384-verified against a pinned constant before it can execute
 - localStorage used only for preferences (theme, granularity, anomaly settings, pricing overrides) — uploaded usage data persists in IndexedDB per workspace (sql.js database, store `sqlite-db`) and survives reloads until you click **Clear**
 
-**How to verify:** Open DevTools → Network tab. Drag in your ZIP. The requests you'll see are the three version-pinned CDN script loads (JSZip + Chart.js + sql.js) plus sql.js fetching its `sql-wasm.wasm` engine — all static library downloads from cdn.jsdelivr.net that carry none of your usage data. Zero outbound data.
+**How to verify:** Open DevTools → Network tab. Drag in your ZIP. The requests you'll see are the three version-pinned CDN script loads (JSZip + Chart.js + sql.js) plus sql.js fetching its `sql-wasm.wasm` engine — all static library downloads from cdn.jsdelivr.net that carry none of your usage data. The wasm engine bytes are sha384-verified against a pinned constant (`SQL_WASM_SHA384_B64`) before they are handed to the SQL engine — a mismatch aborts initialization. Zero outbound data.
 
 ## Features
 
@@ -75,7 +75,7 @@ It's three files. Open `index.html`, `js/dashboard.js`, and `css/dashboard.css` 
 
 - **JSZip 3.10.1** — ZIP extraction (CDN, version-pinned)
 - **Chart.js 4.5.1** — Visualizations (CDN, version-pinned)
-- **sql.js 1.14.2** — SQLite persistence via IndexedDB (CDN)
+- **sql.js 1.14.2** — SQLite persistence via IndexedDB (CDN, version-pinned; wasm engine sha384-verified before execution)
 - **Vanilla JS** — No framework, no build step, no bundler (npm used for vitest + jsdom testing only)
 - **CSS Grid + Flexbox** — Responsive layout, no CSS framework
 - **Testing** — Vitest + jsdom unit-test suite (run `npm test`), no runtime dependencies beyond the three CDN scripts

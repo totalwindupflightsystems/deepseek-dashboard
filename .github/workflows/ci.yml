@@ -76,8 +76,31 @@ jobs:
               fail=1
             fi
           done < <(grep '<script' index.html | grep 'integrity=')
+          # DSD-GAP-053: the sql.js wasm itself is fetched by app JS (not a
+          # <script> tag), so it has no integrity attribute to loop over —
+          # verify it explicitly against the same sha384 the app pins in
+          # js/dashboard.js (SQL_WASM_SHA384_B64). Keep both in sync.
+          WASM_URL="https://cdn.jsdelivr.net/npm/sql.js@1.14.2/dist/sql-wasm.wasm"
+          WASM_SHA384="x0YkuPkDHnKTZcB1JO4eb6j5+eU36aka+jBA6tOKTFaTz98b9V7fPT0QgZ9qyQW2"
+          echo "Checking: $WASM_URL"
+          body=$(mktemp)
+          if ! curl -fsSL -o "$body" "$WASM_URL"; then
+            echo "  FAIL: could not fetch $WASM_URL (HTTP error or network failure)"
+            fail=1
+          else
+            actual=$(openssl dgst -sha384 -binary "$body" | base64 -w0)
+            if [ "$actual" = "$WASM_SHA384" ]; then
+              echo "  PASS: sha384 matches (${actual:0:24}...)"
+            else
+              echo "  FAIL: sha384 mismatch"
+              echo "    expected: $WASM_SHA384"
+              echo "    actual:   $actual"
+              fail=1
+            fi
+          fi
+          rm -f "$body"
           if [ "$fail" -ne 0 ]; then
             echo "::error::SRI verification failed — CDN asset hash mismatch or dead URL detected"
             exit 1
           fi
-          echo "SRI verification PASSED — all CDN assets verified"
+          echo "SRI verification PASSED — all CDN assets verified (incl. sql.js wasm)"

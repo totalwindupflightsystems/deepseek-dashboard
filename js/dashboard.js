@@ -4101,6 +4101,37 @@ document.getElementById('themeToggle')?.addEventListener('click', () => {
   setTheme(cur === 'dark' ? 'light' : 'dark');
 });
 
+// -- DSD-GAP-053: verified sql.js wasm engine loading --
+// The wasm engine touches all user data, so its bytes are pinned: fetch them
+// ourselves, sha384-verify against this constant (same sql.js@1.14.2 as the
+// SRI-pinned glue script in index.html), then hand the verified bytes to
+// initSqlJs via `wasmBinary`. A swapped/compromised wasm can never run.
+const SQL_WASM_URL = 'https://cdn.jsdelivr.net/npm/sql.js@1.14.2/dist/sql-wasm.wasm';
+const SQL_WASM_SHA384_B64 = 'x0YkuPkDHnKTZcB1JO4eb6j5+eU36aka+jBA6tOKTFaTz98b9V7fPT0QgZ9qyQW2';
+
+// Fetch `url` and verify its sha384 (base64) equals `expectedB64` before the
+// bytes are ever handed to the engine. deps={fetch,digest} are injectable for
+// unit tests; defaults use the platform fetch + crypto.subtle. Throws on
+// network failure, non-OK HTTP, wrong digest length, or hash mismatch —
+// callers must treat a throw as fatal and NOT proceed to DB init.
+async function fetchVerifiedWasm(url, expectedB64, deps) {
+  const d = deps || {};
+  const doFetch = d.fetch || fetch.bind(globalThis);
+  const digest = d.digest || ((algo, bytes) => crypto.subtle.digest(algo, bytes));
+  const resp = await doFetch(url);
+  if (!resp.ok) throw new Error('wasm fetch failed: HTTP ' + resp.status);
+  const bytes = await resp.arrayBuffer();
+  // Digest a VIEW of the bytes, not the raw ArrayBuffer: in VM-realm test
+  // environments a cross-context ArrayBuffer fails the digest type check,
+  // while TypedArray views are accepted. A view works identically in browsers.
+  const hashBytes = new Uint8Array(await digest('SHA-384', new Uint8Array(bytes)));
+  if (hashBytes.length !== 48) throw new Error('wasm integrity check failed: digest length ' + hashBytes.length);
+  let binary = '';
+  for (let i = 0; i < hashBytes.length; i++) binary += String.fromCharCode(hashBytes[i]);
+  if (btoa(binary) !== expectedB64) throw new Error('wasm integrity check failed: sha384 mismatch');
+  return bytes;
+}
+
 // -- Init --
 async function init() {
   loadTheme();
@@ -4139,7 +4170,20 @@ async function init() {
     }
   } catch(e) {}
   try {
-    SQL = await initSqlJs({ locateFile: f => `https://cdn.jsdelivr.net/npm/sql.js@1.14.2/dist/${f}` });
+    // DSD-GAP-053: fetch the wasm bytes ourselves, sha384-verify them, and hand
+    // the VERIFIED bytes to initSqlJs (wasmBinary) — the glue never fetches the
+    // engine unpinned. Any failure here is re-thrown tagged so the catch below
+    // can surface it visibly; loadDB/initSchema are never reached.
+    let wasmBytes;
+    try {
+      wasmBytes = await fetchVerifiedWasm(SQL_WASM_URL, SQL_WASM_SHA384_B64);
+      SQL = await initSqlJs({
+        wasmBinary: wasmBytes,
+        locateFile: f => `https://cdn.jsdelivr.net/npm/sql.js@1.14.2/dist/${f}`, // fallback for any non-wasm asset (none expected)
+      });
+    } catch(engineErr) {
+      throw new Error('SQL engine failed to load: ' + engineErr.message);
+    }
     const loaded = await loadDB();
     initSchema();
 
@@ -4175,7 +4219,19 @@ async function init() {
     toast(loaded ? 'Workspace loaded from browser storage' : 'Dashboard ready — create a workspace to begin');
   } catch(e) {
     console.error(e);
+    const isEngineError = typeof e.message === 'string' && e.message.startsWith('SQL engine failed to load:');
     document.body.innerHTML = '<div style="padding:48px;text-align:center;color:var(--red)"><h2>Failed to initialize</h2><p>' + escapeHtml(e.message) + '</p><p style="color:var(--text-dim)">Try reloading the page or clearing browser storage.</p></div>';
+    // DSD-GAP-053: engine-load failures (wasm fetch failure / sha384 mismatch)
+    // must be visible, not a silent dead page. The body replacement above
+    // removes #toast, so re-create it before showing the warn toast.
+    if (isEngineError) {
+      if (!document.getElementById('toast')) {
+        const t = document.createElement('div');
+        t.id = 'toast'; t.className = 'toast';
+        document.body.appendChild(t);
+      }
+      toast('Failed to load SQL engine (integrity check failed) — dashboard cannot start', true);
+    }
   }
 }
 

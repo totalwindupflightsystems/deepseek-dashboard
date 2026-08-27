@@ -26,6 +26,11 @@ globalThis.localStorage = dom.window.localStorage;
 // helpers and event bindings are still evaluated against the real DOM.
 dom.window.initSqlJs = () => new Promise(() => {});
 
+// DSD-GAP-053: app init now fetches + verifies the wasm BEFORE initSqlJs.
+// Stub fetch with a never-resolving promise so init() stays suspended (same
+// contract as the initSqlJs stub above) and never touches the network.
+dom.window.fetch = () => new Promise(() => {});
+
 // Load dashboard.js by evaluating it in the JSDOM window context
 const scriptPath = resolve(process.cwd(), 'js', 'dashboard.js');
 const scriptContent = readFileSync(scriptPath, 'utf-8');
@@ -84,6 +89,8 @@ const funcNames = [
   // DSD-GAP-047: implicit-insights gallery helpers
   'tokenVsCostShareDivergence', 'weekdayShape', 'cpmDrift', 'cacheHitRatio',
   'projectionCrossings', 'renderInsightGallery',
+  // DSD-GAP-053: verified wasm engine loader
+  'fetchVerifiedWasm',
 ];
 
 for (const name of funcNames) {
