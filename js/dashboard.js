@@ -4139,7 +4139,7 @@ async function init() {
     }
   } catch(e) {}
   try {
-    SQL = await initSqlJs({ locateFile: f => `https://cdn.jsdelivr.net/npm/sql.js@1.14.1/dist/${f}` });
+    SQL = await initSqlJs({ locateFile: f => `https://cdn.jsdelivr.net/npm/sql.js@1.14.2/dist/${f}` });
     const loaded = await loadDB();
     initSchema();
 
