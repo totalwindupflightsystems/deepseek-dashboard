@@ -38,6 +38,7 @@
     <div class="no-ws-title">Create a Workspace</div>
     <div class="no-ws-sub">Workspaces keep your DeepSeek accounts separate. Upload data, switch between them anytime.</div>
     <button class="btn btn-accent" id="noWsCreateBtn">+ Create First Workspace</button>
+    <button class="btn sample-data-btn" id="sampleDataBtn">Load sample data</button>
   </div>
 
   <!-- Active Content -->
@@ -53,6 +54,7 @@
         <span class="drop-progress-label"></span>
       </div>
       <div class="drop-help">Expected format: a DeepSeek usage ZIP export containing CSV files. Two layouts are supported: the original <code>amount-YYYY-M.csv</code> / <code>cost-YYYY-M.csv</code> with a <code>utc_date</code> column, and the newer <code>amount-YYYY-MM-DD_YYYY-MM-DD.csv</code> / <code>cost-YYYY-MM-DD_YYYY-MM-DD.csv</code> with <code>start_time_iso</code> / <code>end_time_iso</code> columns (date is derived from <code>start_time_iso</code>). Amount columns: <code>model</code>, <code>api_key_name</code>, <code>type</code>, <code>price</code>, <code>amount</code>. Cost columns: <code>model</code>, <code>wallet_type</code>, <code>cost</code>, <code>currency</code>.</div>
+      <button class="btn-sm sample-data-btn">Load sample data</button>
     </div>
 
     <!-- Upload History -->

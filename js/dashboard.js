@@ -626,6 +626,64 @@ async function handleUpload(file) {
   await refreshAll();
 }
 
+// -- DSD-GAP-054: in-app sample data loader --
+// Builds a fixture ZIP entirely in-browser from the committed tests/fixtures
+// CSVs (same-origin fetch — already permitted by the CSP connect-src 'self')
+// and routes it through handleUpload, so a fresh visitor sees charts with one
+// click: no account, no clone, no manual ZIP download. No upload semantics
+// are changed — the ZIP flows through the existing parseCSV/BOM-strip/date
+// normalization/sql.js/refreshAll path unchanged.
+const SAMPLE_FIXTURES = [
+  'tests/fixtures/amount-2026-06.csv',
+  'tests/fixtures/amount-2026-07-25_2026-08-23.csv',
+  'tests/fixtures/cost-2026-06.csv',
+  'tests/fixtures/cost-2026-07-25_2026-08-23.csv'
+];
+
+async function buildSampleZip() {
+  const zip = new JSZip();
+  for (const path of SAMPLE_FIXTURES) {
+    const resp = await fetch(path);
+    if (!resp.ok) throw new Error('Failed to load ' + path);
+    const text = await resp.text();
+    // Entry name MUST be the basename so _processSingleFile's amount-/cost-
+    // prefix routing picks it up (a tests/fixtures/ prefix would be ignored).
+    zip.file(path.split('/').pop(), text);
+  }
+  return new File([await zip.generateAsync({ type: 'blob' })], 'sample-usage.zip', { type: 'application/zip' });
+}
+
+async function loadSampleData(e) {
+  // The dropZone has a click listener that opens the file picker — stop the
+  // event here so clicking the sample button doesn't also pop the picker.
+  if (e) e.stopPropagation();
+  const dz = document.getElementById('dropZone');
+  const btns = document.querySelectorAll('.sample-data-btn');
+  btns.forEach(b => b.disabled = true); // double-click guard
+  dz.classList.add('processing');
+  const titleEl = dz.querySelector('.drop-title');
+  const prevTitle = titleEl.textContent;
+  titleEl.textContent = 'Loading sample data…';
+  try {
+    if (!activeWsId) {
+      const id = createWorkspace('Sample');
+      refreshWsList();
+      await switchWorkspace(id);
+    }
+    const file = await buildSampleZip();
+    await handleUpload(file);
+  } catch(err) {
+    toast('Error: ' + err.message, true);
+    console.error(err);
+  } finally {
+    btns.forEach(b => b.disabled = false);
+    dz.classList.remove('processing');
+    // handleUpload already resets the title on success — don't clobber it.
+    if (titleEl.textContent === 'Loading sample data…') titleEl.textContent = prevTitle;
+    hideProgressBar(dz);
+  }
+}
+
 // -- Multiple file upload --
 async function handleMultipleUpload(files) {
   if (!files || files.length === 0) return;
@@ -3841,6 +3899,11 @@ dz.addEventListener('click', () => {
   inp.onchange = () => { if (inp.files.length) handleMultipleUpload(inp.files); };
   inp.click();
 });
+
+// DSD-GAP-054: sample data buttons (noWs panel + drop zone) — both share the
+// .sample-data-btn class; only the noWs one carries the sampleDataBtn id
+// (html-validate no-dup-id).
+document.querySelectorAll('.sample-data-btn').forEach(btn => btn.addEventListener('click', loadSampleData));
 
 // Export
 document.getElementById('exportBtn').addEventListener('click', () => {
