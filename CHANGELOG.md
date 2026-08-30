@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-29 — August Feature Wave
+
+**Security**
+- sql.js wasm engine fetch is now sha384-verified against its integrity hash before `initSqlJs` runs — a tampered or mismatched engine binary is rejected before any SQL executes (`c71b413`).
+- sql.js wasm engine pinned to 1.14.2, matching the SRI-pinned glue script (`1047cbf`).
+
+**Features**
+- Support for DeepSeek's new export format with `start_time_iso` timestamps — uploads in the new format parse and load correctly (`d0478da`).
+- Trend overlays on token & spend charts: 7d rolling average, weekly aggregation, per-model breakdowns, and day-over-day growth (`6bac51a`).
+- Projection engine: linear-regression and exponential-fit forecast overlays plus a quarter projection view (`f85596a`).
+- Quarterly aggregation view with quarter-over-quarter (QoQ) comparison (`4492640`).
+- Multi-workspace overlay charts — per-workspace token/spend series, legend toggles, index=100 normalize (`79f8757`).
+- Implicit-insights gallery — share-divergence, weekday shape, cost-per-million drift, cache-hit ratio, and projection-crossing views (`5602c1a`).
+- In-app 'Load sample data' button builds a fixture ZIP on the fly via JSZip — try the dashboard without a real export (`5286ab5`).
+- Dual-CDN fallback loader with a visible error surface when CDN scripts fail (`8224043`).
+
 ## 2026-08-19 — August Release Batch
 
 **Security**
