@@ -3,12 +3,93 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://cdn.jsdelivr.net; frame-src 'none'; object-src 'none'; base-uri 'self'; worker-src blob:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; frame-src 'none'; object-src 'none'; base-uri 'self'; worker-src blob:;">
 <title>DeepSeek Usage Dashboard</title>
 <script>(function(){try{var t=localStorage.getItem('ds-dash-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/sql.js@1.14.2/dist/sql-wasm.js" integrity="sha384-7Zym2PlgXfg8ap8cqJUwlZrLl+VEwt0NVbzYfhH28IWLnSpAgQOnSCY2+EXo5MtM" crossorigin="anonymous"></script>
+<script>
+(function () {
+  // DSD-GAP-055: dual-CDN bootstrap loader. Each pinned library is injected
+  // from its primary host first; on error the fallback host is tried with the
+  // SAME sha384 pin (both hosts serve byte-identical files for the pinned
+  // versions). window.__dsdLibs is a promise that settles to {ok:true} or
+  // {ok:false, missing:[{lib, hosts:[...]}]} so js/dashboard.js can gate on
+  // it before touching any library. If every host fails, a visible error
+  // panel names each failed lib and both CDN hosts tried — never a blank
+  // page or a bare ReferenceError.
+  var LIBS = [
+    { lib: 'JSZip', primary: 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', fallback: 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', integrity: 'sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG' },
+    { lib: 'Chart.js', primary: 'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js', fallback: 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js', integrity: 'sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ' },
+    { lib: 'sql.js', primary: 'https://cdn.jsdelivr.net/npm/sql.js@1.14.2/dist/sql-wasm.js', fallback: 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.14.2/sql-wasm.js', integrity: 'sha384-7Zym2PlgXfg8ap8cqJUwlZrLl+VEwt0NVbzYfhH28IWLnSpAgQOnSCY2+EXo5MtM' }
+  ];
+  var missing = [];
+  var pending = LIBS.length;
+  var resolveLibs;
+  var promise = new Promise(function (resolve) { resolveLibs = resolve; });
+  function settle() {
+    resolveLibs(missing.length ? { ok: false, missing: missing } : { ok: true });
+  }
+  function loaded() { if (--pending === 0) settle(); }
+  function tryHost(entry, hosts, i) {
+    if (i >= hosts.length) {
+      missing.push({ lib: entry.lib, hosts: hosts });
+      loaded();
+      return;
+    }
+    var s = document.createElement('script');
+    s.src = hosts[i];
+    s.integrity = entry.integrity;
+    s.crossOrigin = 'anonymous';
+    s.onload = loaded;
+    s.onerror = function () {
+      s.remove();
+      tryHost(entry, hosts, i + 1);
+    };
+    document.head.appendChild(s);
+  }
+  for (var i = 0; i < LIBS.length; i++) {
+    var entry = LIBS[i];
+    tryHost(entry, [entry.primary, entry.fallback], 0);
+  }
+  window.__dsdLibs = promise;
+  // Visible error surface: if any lib failed on BOTH hosts, render a panel
+  // naming the failed lib(s) and both hosts tried. Defer to DOMContentLoaded
+  // if the body is not parsed yet.
+  promise.then(function (res) {
+    if (!res || res.ok) return;
+    function render() {
+      var panel = document.createElement('div');
+      panel.id = 'dsdLibError';
+      panel.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.85);color:#ff6b6b;font-family:system-ui,-apple-system,sans-serif;';
+      var box = document.createElement('div');
+      box.style.cssText = 'max-width:640px;padding:32px;background:#1e1e2e;border:1px solid #ff6b6b;border-radius:8px;text-align:center;';
+      var h = document.createElement('h2');
+      h.textContent = 'Failed to load required libraries';
+      h.style.cssText = 'margin:0 0 8px;';
+      var p = document.createElement('p');
+      p.textContent = 'The dashboard needs JSZip, Chart.js, and sql.js and could not load them from either CDN host.';
+      p.style.cssText = 'margin:0 0 12px;';
+      var ul = document.createElement('ul');
+      ul.style.cssText = 'text-align:left;margin:0 0 12px;';
+      res.missing.forEach(function (m) {
+        var li = document.createElement('li');
+        var strong = document.createElement('strong');
+        strong.textContent = m.lib;
+        li.appendChild(strong);
+        li.appendChild(document.createTextNode(' — tried: ' + m.hosts.join(' , ')));
+        ul.appendChild(li);
+      });
+      var tip = document.createElement('p');
+      tip.textContent = 'Check your network connection or firewall and reload.';
+      tip.style.cssText = 'color:#aaa;font-size:0.9rem;margin:0;';
+      box.appendChild(h); box.appendChild(p); box.appendChild(ul); box.appendChild(tip);
+      panel.appendChild(box);
+      document.body.appendChild(panel);
+    }
+    if (document.body) render();
+    else document.addEventListener('DOMContentLoaded', render);
+  });
+})();
+</script>
 <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>

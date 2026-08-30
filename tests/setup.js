@@ -31,6 +31,15 @@ dom.window.initSqlJs = () => new Promise(() => {});
 // contract as the initSqlJs stub above) and never touches the network.
 dom.window.fetch = () => new Promise(() => {});
 
+// DSD-GAP-055: the dual-CDN loader in index.html is excluded from the harness,
+// so satisfy the init() gate with a resolved {ok:true} and stub the libs it
+// would have injected — no code path can touch the network or throw a bare
+// ReferenceError before a test installs its own (tests that need real JSZip
+// set window.JSZip themselves).
+dom.window.__dsdLibs = Promise.resolve({ ok: true });
+dom.window.JSZip = { loadAsync: () => new Promise(() => {}) };
+dom.window.Chart = function Chart() {};
+
 // Load dashboard.js by evaluating it in the JSDOM window context
 const scriptPath = resolve(process.cwd(), 'js', 'dashboard.js');
 const scriptContent = readFileSync(scriptPath, 'utf-8');

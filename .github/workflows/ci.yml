@@ -47,60 +47,48 @@ jobs:
           test -f index.html || (echo "index.html missing" && exit 1)
           echo "index.html exists ($(wc -l < index.html) lines, $(wc -c < index.html) bytes)"
 
-      - name: Verify CDN SRI hashes
+      - name: Verify CDN SRI hashes (all 8 assets)
         run: |
           set -euo pipefail
           fail=0
-          # Extract only <script> tags carrying an integrity attribute (CDN tags)
-          while IFS= read -r line; do
-            src=$(printf '%s' "$line" | grep -oP 'src="\K[^"]*')
-            integrity=$(printf '%s' "$line" | grep -oP 'integrity="\K[^"]*')
-            algo="${integrity%%-*}"
-            expected="${integrity#*-}"
-            echo "Checking: $src"
+          # DSD-GAP-055: ALL 8 CDN assets — 3 libs x 2 hosts (primary + fallback
+          # mirror) plus the 2 sql.js wasm mirrors. Both hosts serve
+          # byte-identical files for the pinned versions, so each URL must match
+          # the app's single sha384 pin (same pins as the index.html loader and
+          # SQL_WASM_SHA384_B64 in js/dashboard.js). Fails on mismatch or dead
+          # URL. Format: <sha384-base64> <url>
+          while read -r expected url; do
+            [ -z "$expected" ] && continue
+            echo "Checking: $url"
             body=$(mktemp)
-            if ! curl -fsSL -o "$body" "$src"; then
-              echo "  FAIL: could not fetch $src (HTTP error or network failure)"
+            if ! curl -fsSL -o "$body" "$url"; then
+              echo "  FAIL: could not fetch $url (HTTP error or network failure)"
               fail=1
               rm -f "$body"
               continue
             fi
-            actual=$(openssl dgst -"$algo" -binary "$body" | base64 -w0)
+            actual=$(openssl dgst -sha384 -binary "$body" | base64 -w0)
             rm -f "$body"
             if [ "$actual" = "$expected" ]; then
-              echo "  PASS: $algo matches (${actual:0:24}...)"
+              echo "  PASS: sha384 matches (${actual:0:24}...)"
             else
-              echo "  FAIL: $algo mismatch"
+              echo "  FAIL: sha384 mismatch"
               echo "    expected: $expected"
               echo "    actual:   $actual"
               fail=1
             fi
-          done < <(grep '<script' index.html | grep 'integrity=')
-          # DSD-GAP-053: the sql.js wasm itself is fetched by app JS (not a
-          # <script> tag), so it has no integrity attribute to loop over —
-          # verify it explicitly against the same sha384 the app pins in
-          # js/dashboard.js (SQL_WASM_SHA384_B64). Keep both in sync.
-          WASM_URL="https://cdn.jsdelivr.net/npm/sql.js@1.14.2/dist/sql-wasm.wasm"
-          WASM_SHA384="x0YkuPkDHnKTZcB1JO4eb6j5+eU36aka+jBA6tOKTFaTz98b9V7fPT0QgZ9qyQW2"
-          echo "Checking: $WASM_URL"
-          body=$(mktemp)
-          if ! curl -fsSL -o "$body" "$WASM_URL"; then
-            echo "  FAIL: could not fetch $WASM_URL (HTTP error or network failure)"
-            fail=1
-          else
-            actual=$(openssl dgst -sha384 -binary "$body" | base64 -w0)
-            if [ "$actual" = "$WASM_SHA384" ]; then
-              echo "  PASS: sha384 matches (${actual:0:24}...)"
-            else
-              echo "  FAIL: sha384 mismatch"
-              echo "    expected: $WASM_SHA384"
-              echo "    actual:   $actual"
-              fail=1
-            fi
-          fi
-          rm -f "$body"
+          done <<'EOF'
+          +mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js
+          +mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
+          jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js
+          jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js
+          7Zym2PlgXfg8ap8cqJUwlZrLl+VEwt0NVbzYfhH28IWLnSpAgQOnSCY2+EXo5MtM https://cdn.jsdelivr.net/npm/sql.js@1.14.2/dist/sql-wasm.js
+          7Zym2PlgXfg8ap8cqJUwlZrLl+VEwt0NVbzYfhH28IWLnSpAgQOnSCY2+EXo5MtM https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.14.2/sql-wasm.js
+          x0YkuPkDHnKTZcB1JO4eb6j5+eU36aka+jBA6tOKTFaTz98b9V7fPT0QgZ9qyQW2 https://cdn.jsdelivr.net/npm/sql.js@1.14.2/dist/sql-wasm.wasm
+          x0YkuPkDHnKTZcB1JO4eb6j5+eU36aka+jBA6tOKTFaTz98b9V7fPT0QgZ9qyQW2 https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.14.2/sql-wasm.wasm
+          EOF
           if [ "$fail" -ne 0 ]; then
             echo "::error::SRI verification failed — CDN asset hash mismatch or dead URL detected"
             exit 1
           fi
-          echo "SRI verification PASSED — all CDN assets verified (incl. sql.js wasm)"
+          echo "SRI verification PASSED — all 8 CDN assets verified (3 libs x 2 hosts + 2 wasm mirrors)"

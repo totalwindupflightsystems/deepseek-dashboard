@@ -14,10 +14,10 @@ This dashboard fixes that. Drag in your DeepSeek usage ZIP. Get charts, trends, 
 
 - All parsing, aggregation, and charting is client-side JavaScript
 - No analytics, no telemetry, no CDN calls that phone home
-- CDN imports (JSZip, Chart.js, sql.js) are the only external requests — all are version-pinned, and the sql.js wasm engine is sha384-verified against a pinned constant before it can execute
+- CDN imports (JSZip, Chart.js, sql.js) are the only external requests — each library is version-pinned and loaded primary-then-fallback across two CDN hosts (jsDelivr + cdnjs) with per-injection sha384 SRI, and the sql.js wasm engine is sha384-verified against a pinned constant before it can execute
 - localStorage used only for preferences (theme, granularity, anomaly settings, pricing overrides) — uploaded usage data persists in IndexedDB per workspace (sql.js database, store `sqlite-db`) and survives reloads until you click **Clear**
 
-**How to verify:** Open DevTools → Network tab. Drag in your ZIP. The requests you'll see are the three version-pinned CDN script loads (JSZip + Chart.js + sql.js) plus sql.js fetching its `sql-wasm.wasm` engine — all static library downloads from cdn.jsdelivr.net that carry none of your usage data. The wasm engine bytes are sha384-verified against a pinned constant (`SQL_WASM_SHA384_B64`) before they are handed to the SQL engine — a mismatch aborts initialization. Zero outbound data.
+**How to verify:** Open DevTools → Network tab. Drag in your ZIP. The requests you'll see are the three version-pinned CDN script loads (JSZip + Chart.js + sql.js) plus sql.js fetching its `sql-wasm.wasm` engine — all static library downloads from cdn.jsdelivr.net or cdnjs.cloudflare.com that carry none of your usage data. Each library is injected by a small bootstrap loader in `index.html` that tries the primary CDN host first and falls back to the second host on failure (both hosts serve byte-identical files for the pinned versions, so the same sha384 SRI verifies either). If both hosts are unreachable, the loader and `js/dashboard.js` surface a visible error naming the failed library and both hosts tried — no blank page or bare `ReferenceError`. The wasm engine bytes are sha384-verified against a pinned constant (`SQL_WASM_SHA384_B64`) before they are handed to the SQL engine — a mismatch aborts initialization (after one retry against the cdnjs wasm mirror with the same pin). Zero outbound data.
 
 ## Features
 

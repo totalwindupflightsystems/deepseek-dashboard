@@ -4170,6 +4170,11 @@ document.getElementById('themeToggle')?.addEventListener('click', () => {
 // SRI-pinned glue script in index.html), then hand the verified bytes to
 // initSqlJs via `wasmBinary`. A swapped/compromised wasm can never run.
 const SQL_WASM_URL = 'https://cdn.jsdelivr.net/npm/sql.js@1.14.2/dist/sql-wasm.wasm';
+// DSD-GAP-055: cdnjs mirror of the same pinned wasm — bytes are identical
+// across hosts for the pinned version, so the SAME SQL_WASM_SHA384_B64 pin
+// verifies it (never a second wasm pin). Used as a one-shot retry host when
+// the jsdelivr primary is unreachable.
+const SQL_WASM_MIRROR_URL = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.14.2/sql-wasm.wasm';
 const SQL_WASM_SHA384_B64 = 'x0YkuPkDHnKTZcB1JO4eb6j5+eU36aka+jBA6tOKTFaTz98b9V7fPT0QgZ9qyQW2';
 
 // Fetch `url` and verify its sha384 (base64) equals `expectedB64` before the
@@ -4233,13 +4238,34 @@ async function init() {
     }
   } catch(e) {}
   try {
+    // DSD-GAP-055: gate on the dual-CDN loader before touching any library.
+    // The inline loader in index.html settles window.__dsdLibs (a promise) to
+    // {ok:true} or {ok:false, missing:[{lib, hosts:[...]}]}; fall back to
+    // {ok:true} when the loader is absent (pre-change deployments / unit-test
+    // harness). This await is the first suspension point — never a synchronous
+    // throw on missing libs — so failures surface through the catch below as a
+    // visible tagged error instead of a bare ReferenceError or dead page.
+    const dsdLibs = await (window.__dsdLibs || Promise.resolve({ ok: true }));
+    if (dsdLibs && dsdLibs.ok === false) {
+      const detail = (dsdLibs.missing || [])
+        .map(m => m.lib + ' (tried ' + m.hosts.join(', ') + ')')
+        .join('; ');
+      throw new Error('Libraries failed to load: ' + detail);
+    }
     // DSD-GAP-053: fetch the wasm bytes ourselves, sha384-verify them, and hand
     // the VERIFIED bytes to initSqlJs (wasmBinary) — the glue never fetches the
     // engine unpinned. Any failure here is re-thrown tagged so the catch below
     // can surface it visibly; loadDB/initSchema are never reached.
     let wasmBytes;
     try {
-      wasmBytes = await fetchVerifiedWasm(SQL_WASM_URL, SQL_WASM_SHA384_B64);
+      try {
+        wasmBytes = await fetchVerifiedWasm(SQL_WASM_URL, SQL_WASM_SHA384_B64);
+      } catch (primaryErr) {
+        // DSD-GAP-055: one retry against the cdnjs mirror — the pinned version
+        // is byte-identical across hosts, so the SAME pin verifies the mirror
+        // (never a second wasm pin).
+        wasmBytes = await fetchVerifiedWasm(SQL_WASM_MIRROR_URL, SQL_WASM_SHA384_B64);
+      }
       SQL = await initSqlJs({
         wasmBinary: wasmBytes,
         locateFile: f => `https://cdn.jsdelivr.net/npm/sql.js@1.14.2/dist/${f}`, // fallback for any non-wasm asset (none expected)
@@ -4282,18 +4308,22 @@ async function init() {
     toast(loaded ? 'Workspace loaded from browser storage' : 'Dashboard ready — create a workspace to begin');
   } catch(e) {
     console.error(e);
-    const isEngineError = typeof e.message === 'string' && e.message.startsWith('SQL engine failed to load:');
+    const isEngineError = typeof e.message === 'string' && (e.message.startsWith('SQL engine failed to load:') || e.message.startsWith('Libraries failed to load:'));
     document.body.innerHTML = '<div style="padding:48px;text-align:center;color:var(--red)"><h2>Failed to initialize</h2><p>' + escapeHtml(e.message) + '</p><p style="color:var(--text-dim)">Try reloading the page or clearing browser storage.</p></div>';
-    // DSD-GAP-053: engine-load failures (wasm fetch failure / sha384 mismatch)
-    // must be visible, not a silent dead page. The body replacement above
-    // removes #toast, so re-create it before showing the warn toast.
+    // DSD-GAP-053/055: engine-load failures (wasm fetch failure / sha384
+    // mismatch) and CDN-library failures must be visible, not a silent dead
+    // page. The body replacement above removes #toast, so re-create it before
+    // showing the warn toast.
     if (isEngineError) {
       if (!document.getElementById('toast')) {
         const t = document.createElement('div');
         t.id = 'toast'; t.className = 'toast';
         document.body.appendChild(t);
       }
-      toast('Failed to load SQL engine (integrity check failed) — dashboard cannot start', true);
+      const toastMsg = e.message.startsWith('Libraries failed to load:')
+        ? 'Failed to load CDN libraries — dashboard cannot start'
+        : 'Failed to load SQL engine (integrity check failed) — dashboard cannot start';
+      toast(toastMsg, true);
     }
   }
 }
