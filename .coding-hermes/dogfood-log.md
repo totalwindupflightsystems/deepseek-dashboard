@@ -59,3 +59,4 @@ screenshots in `/tmp/dogfood-dsd/run2/shots/`, full report in
 `docs/dogfood/2026-08-18-integration.md`, diagnostics updated in
 `docs/dogfood/diagnostics.md` (run-2 section: two-source cost attribution,
 silent drops, super-linear upload, doc ghosts).
+2026-09-01 | SHIPPABLE | 3s t2fs | friction 6 | 5 findings

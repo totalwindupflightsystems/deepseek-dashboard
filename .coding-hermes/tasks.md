@@ -43,3 +43,13 @@ closed and re-verified fixed on 2026-08-18. See
 
 - [ ] **NEVER-DONE — 12-point audit sweep** (perpetual, runs every tick)
 - [ ] **E2E-001 — E2E Testing Tick** (self-improving loop, every 5-10 ticks)
+
+## Dogfood Findings (2026-09-01)
+Verdict: SHIPPABLE
+Promise: {"entry_point":"Static single-page web app: open index.html in a browser (no CLI binary, no HTTP server required); live demo at https://totalwindupflightsystems.github.io/deepseek-dashboard/; optional local serve via python3 -m http.server","promise":"This project claims a user can turn DeepSeek's r
+
+- [P2] README test count understated — '60+' vs 332 actual — npm test runs 332/332 vitest/jsdom tests; README says '60+'. Docs drift, but in the conservative direction (suite is larger than advertised, not smaller), so no trust impact on the deliverable itself.
+- [P2] Dropped-rows toast lacks row/file-level detail — Upload toast '2 dropped — invalid utc_date' reports only a count; with real (not fixture) data the user cannot tell which file or rows were skipped and why, which is alarming when failures are intenti
+- [P2] Row accounting mismatch between toast and upload history — Same ZIP shows 'Added 21 rows' in the toast but '42 rows' in upload history for one drag — appears to be added-vs-updated semantics (21 new + 21 diff-managed updates) but is never explained in the UI
+- [P2] 'Load sample data' buttons render invisible and are undocumented — Buttons exist in the DOM but measure 0x0 once a workspace has data, and the README never mentions the feature at all — new users can't discover it, and users who do see it flash cannot understand why
+- [P2] Two cosmetic/UX noise items: Vite configLoader warning and favicon 404 — Every npm test run emits a Vite 'configLoader native / ESM-in-CJS' warning that reads like an error to a new contributor; local serve logs a favicon.ico 404. Neither affects functionality, but both er
