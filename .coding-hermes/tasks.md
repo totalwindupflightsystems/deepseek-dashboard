@@ -53,3 +53,13 @@ Promise: {"entry_point":"Static single-page web app: open index.html in a browse
 - [P2] Row accounting mismatch between toast and upload history — Same ZIP shows 'Added 21 rows' in the toast but '42 rows' in upload history for one drag — appears to be added-vs-updated semantics (21 new + 21 diff-managed updates) but is never explained in the UI
 - [P2] 'Load sample data' buttons render invisible and are undocumented — Buttons exist in the DOM but measure 0x0 once a workspace has data, and the README never mentions the feature at all — new users can't discover it, and users who do see it flash cannot understand why
 - [P2] Two cosmetic/UX noise items: Vite configLoader warning and favicon 404 — Every npm test run emits a Vite 'configLoader native / ESM-in-CJS' warning that reads like an error to a new contributor; local serve logs a favicon.ico 404. Neither affects functionality, but both er
+
+## Dogfood Findings (2026-09-07)
+Verdict: SHIPPABLE
+Promise: {"entry_point":"Static web page: open index.html in a browser (or the live GitHub Pages demo); no CLI binary, no server, no library/MCP/cron — the app is index.html + css/dashboard.css + js/dashboard.js with three version-pinned CDN libraries.","promise":"This project claims a user can turn DeepSeek
+
+- [P2] Last 7 Days on sparse data shows cost without request counts — Reproduced live: period=7d on the June fixture renders 9.08 cost / '0 requests · ~0/day' / 100% input tokens with no partial-data indicator. Window 06-19..06-25 (anchored to dataset max 06-25) has c
+- [P2] favicon.ico 404 on live site — curl https://totalwindupflightsystems.github.io/deepseek-dashboard/favicon.ico → HTTP 404; no favicon link in index.html, no favicon file in repo. Cosmetic console noise only.
+- [P2] vitest configLoader 'native' ESM-in-CJS warning every test run — npm test prints 'ESM syntax in a file loaded as CommonJS (vitest.config.js:1:1)' — vitest.config.js uses import/export without type:module or .mjs. Cosmetic; 332/332 tests still pass in 2.61s.
+- [P2] 'Load sample data' button undocumented in README How to Use — Button verified working (fresh workspace → 42 rows, dedup toast 'Added 42 rows · 2026-06-01 → 2026-08-15 (4 dropped — invalid utc_date)', 9 charts, 13.49 KPI). README Sample Data section documents b
+- [P2] No programmatic upload path or port-conflict guidance documented — window.handleMultipleUpload exists (verified: notes.txt → 'No .zip files found') but README documents drag-drop only; run command is hardcoded to 8099 with no alternate-port note. Both are discoverabi
