@@ -54,6 +54,52 @@ Promise: {"entry_point":"Static single-page web app: open index.html in a browse
 - [P2] 'Load sample data' buttons render invisible and are undocumented — Buttons exist in the DOM but measure 0x0 once a workspace has data, and the README never mentions the feature at all — new users can't discover it, and users who do see it flash cannot understand why
 - [P2] Two cosmetic/UX noise items: Vite configLoader warning and favicon 404 — Every npm test run emits a Vite 'configLoader native / ESM-in-CJS' warning that reads like an error to a new contributor; local serve logs a favicon.ico 404. Neither affects functionality, but both er
 
+## Dogfood Findings (2026-09-07 — run 3, evening)
+
+Real-use browser sessions (Playwright/Chrome) on local serve, plus fresh-install
+leg on an ephemeral bunker agent. Untouched-surface focus: PNG export, pricing
+calculator, rate-limit tiers, anomaly panel, granularity, theme, search,
+mobile, offline CDN failure, file:// entry. Verdict: ✅ SHIPPABLE (3rd
+consecutive). Live site byte-identical to HEAD (20,966 B index.html).
+Evidence: `/tmp/dogfood-dsd/run3/evidence-{a,b,c}.jsonl` + `evidence-file.txt`,
+screenshots `/tmp/dogfood-dsd/run3/shots/`, full report
+`docs/dogfood/2026-09-07-integration.md`.
+
+- [P2] **DSD-GAP-059** — Raw-table search caps at the 50,000-row fetch window
+  silently: `renderTable()` fetches LIMIT 50,000 then searches that window;
+  past 50k rows a needle outside the window yields "(0 of 97,312 rows)" —
+  label doesn't say only a window was searched. Found in source (fixture too
+  small to trigger); suite can't catch it.
+- [P2] **DSD-GAP-060** — No documented programmatic surface:
+  `window.handleMultipleUpload(FileList)`, `parseCSV`, `detectAnomalies` are
+  stable and verified working (file:// + scripted upload, 0 console errors)
+  but undocumented — batch users and agents must read source.
+- [P3] **DSD-GAP-061** — rawSearch has no placeholder/label naming what it
+  searches (date/model/key/type); match semantics (substring,
+  case-insensitive) undiscoverable without source.
+- [P2] **DSD-GAP-062** — Doc-drift process gap: usage SKILL.md went stale in
+  a day (90 tests→332 actual; GAP-032/033 listed open→both complete). Fix the
+  process: refresh docs citing a GAP id when that row completes.
+
+Run-3 verifications (no task needed): GAP-033 search fix verified live
+(`(283 of 568 rows)` filtered count, clean no-match state); GAP-055 offline
+surface verified live (both CDNs blocked → visible "Failed to initialize —
+Libraries failed to load: JSZip (tried cdnjs…, jsdelivr…)" banner, not a
+blank page); favicon 404 still present (DSD-GAP-057, known); rate-limit
+gauge math self-consistent (avg req/day ÷ tier daily cap: Free 7,944÷14,400
+= 55.2%, Paid ÷720,000 = 1.1%); pricing calculator mathematically consistent
+(2× output price → +$421.18 (+24.4%), per-model breakdown matches); theme
+persists reload; mobile 375px: no horizontal overflow, filters bottom-sheet
+works, panels collapse ≤768px; hostile ZIP (garbage row + wrong-column CSV +
+non-CSV member) → "Added 2 rows … (1 dropped — invalid utc_date)", no
+breakage. Fresh-install leg (bunker agent a9dafa8f on karahermes-mde-7840hs-2
+— las-bunker-03 unreachable, matches pending QA rows): clone from public
+GitHub → npm ci rc=0 (1s) → npm test 332/332 (6.1s) → npx html-validate
+rc=0 → npm audit 0 vulnerabilities. Install_seconds=1 (deps) — agent had
+node 22.23.2 preinstalled, so zero-bootstrap is untested on truly bare
+Debian (prior QA note: agents lack node by default → count as known
+harness provision step, not a project gap).
+
 ## Dogfood Findings (2026-09-07)
 Verdict: SHIPPABLE
 Promise: {"entry_point":"Static web page: open index.html in a browser (or the live GitHub Pages demo); no CLI binary, no server, no library/MCP/cron — the app is index.html + css/dashboard.css + js/dashboard.js with three version-pinned CDN libraries.","promise":"This project claims a user can turn DeepSeek

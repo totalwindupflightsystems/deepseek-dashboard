@@ -179,3 +179,58 @@ gap (NO-PUSH policy vs README live link). When touching it: name your SQL
 columns explicitly, thread filter state through one `refreshAll()` path and
 test each filter actually changes output, anchor date windows to the data, and
 treat "live ≠ main" as a first-class audit signal, not an accepted constant.
+
+## Run 3 Evening (2026-09-07) — How the untouched surface works, and the two traps
+
+**Scope:** this run deliberately skipped the re-proven happy path and drove
+the surfaces no prior dogfood had: PNG export, pricing calculator (with a
+real price change), rate-limit tiers, anomaly threshold slider, raw-table
+search (post-GAP-033), theme persistence, mobile viewport, offline CDN
+failure, and the `file://` entry path. All worked; the evidence lives in
+`/tmp/dogfood-dsd/run3/evidence-{a,b,c}.jsonl` and
+`docs/dogfood/2026-09-07-integration.md`.
+
+**How the under-documented pieces actually work (the "why" trail):**
+
+- **Rate-limit gauge math.** The gauge is *avg requests/day ÷ tier daily
+  cap*, not requests-per-minute based: Free (14,400/day) → 55.2% on the
+  sample (7,944 avg req/day), Paid (720,000/day) → 1.1%. `RATE_TIER_LIMITS`
+  (js/dashboard.js ~3270) defines free/paid/enterprise; "Custom" just swaps
+  in user RPM/day inputs. If you ever see a gauge number that looks like a
+  different metric, check whether the tier pref (`prefs.tier`) actually
+  changed before doubting the math.
+- **Pricing calculator.** Original cost auto-computes on open from
+  `price*amount` in token_usage; New cost rebuilds from the per-model,
+  per-type inputs (`data-model` / `data-ptype` attributes on the inputs).
+  Diff coloring flips at ±$0.005. Our 2×-output-price probe produced a
+  mathematically exact diff — the calculator is trustworthy, not cosmetic.
+- **Search (GAP-033 fix) and its blind spot.** `renderTable()` does a fast
+  `COUNT(*)` for the label, fetches `LIMIT TABLE_ROW_LIMIT` (50,000) rows,
+  then `filterRowsBySearch()` filters *that window* client-side
+  (substring, case-insensitive, across date/model/key/type). The window is
+  invisible in the label — that's GAP-059. A future fix should either push
+  the search into the SQL `WHERE` or print the window size.
+- **Panels and visibility.** Collapsible panels start expanded on desktop
+  and collapsed ≤768 px. Two automation traps cost us a probe each: (1) a
+  desktop `.click()` on the toggle *collapses* an expanded panel, and (2)
+  Playwright actionability hides selects inside collapsed bodies — drive
+  them via `el.value=…; dispatchEvent(new Event('change'))`.
+- **Offline behavior (GAP-055 fix).** The bootstrap loader in index.html
+  tries two CDN hosts per library, and a visible failure banner names the
+  library and both hosts tried. Verified by route-aborting both hosts: the
+  page degrades to a clear error, not a blank zone.
+- **Installability (bunker leg).** Clone from the public GitHub URL →
+  `npm ci` (1 s) → `npm test` 332/332 (6.1 s) → `html-validate` clean on a
+  bare ephemeral agent (node preinstalled in the agent image — truly bare
+  Debian bootstrap remains a harness question, not a project one). Note for
+  future runs: `bunker-las-03` was offline/dropped from the registry; the
+  local bunkerd `karahermes-mde-7840hs-2` is a working substitute. /tmp is
+  root-owned on shared-host agents — write scratch logs to `$HOME`.
+
+**Errors hit this run (and their meaning):** two driver-side timeouts
+(selector vs JS-expression, hidden select in collapsed panel) were harness
+bugs, not app bugs — the app's behavior was correct in both cases
+(correct 0-match search state; panels legitimately collapsed/expanded by
+viewport rule). The only console error across all real-use sessions was the
+known favicon 404 (DSD-GAP-057).
+

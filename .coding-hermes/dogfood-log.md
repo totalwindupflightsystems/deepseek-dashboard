@@ -62,3 +62,4 @@ silent drops, super-linear upload, doc ghosts).
 2026-09-01 | SHIPPABLE | 3s t2fs | friction 6 | 5 findings
 2026-09-07 | SHIPPABLE | 3s t2fs | friction 5 | 5 findings
 
+2026-09-07 (run 3, evening) | SHIPPABLE | 4.8s t2fs | friction 5 | 4 findings (GAP-059..062) | install leg: clone+npm ci 1s+332/332 tests on bunker a9dafa8f@karahermes-mde-7840hs-2 (las-03 offline); smoke=ok
