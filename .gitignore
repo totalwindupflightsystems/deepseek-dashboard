@@ -4,7 +4,18 @@ node_modules/
 _check_syntax.js
 _verify*.js
 .vfs/
-.gitreins/
+# .gitreins/: guard run state stays local, but the guard CONFIG is tracked —
+# an un-tracked config means the commit gate is host-only state and a fresh
+# clone runs with whatever .gitreins/config.yaml it happens to have (or none).
+# SCHED-GAP-208: board-only commits need guards.allow_skips: true in the
+# tracked config; run artifacts below stay ignored.
+.gitreins/*
+!.gitreins/config.yaml
+.gitreins/tasks.yaml
+.gitreins/config.yaml.bak
+.gitreins/usage.jsonl
+.gitreins/logs/
+.gitreins/qa-ledger.jsonl
 .env*
 
 # DuckDB board cache (rebuildable from Parquet)
