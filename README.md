@@ -83,10 +83,12 @@ It's three files. Open `index.html`, `js/dashboard.js`, and `css/dashboard.css` 
 
 ## Data Format
 
-DeepSeek exports two CSVs inside the ZIP:
+DeepSeek exports two CSVs inside the ZIP, in one of two layouts:
 
-- **`amount-YYYY-M.csv`** — Per-API-key token breakdown with type (cache hit, cache miss, output, request count), per-unit pricing, and counts
-- **`cost-YYYY-M.csv`** — Per-model daily cost totals in USD
+- **`amount-YYYY-M.csv`** — Per-API-key token breakdown with `utc_date` (also accepts bare `YYYYMMDD`), `model`, `type` (cache hit / cache miss / output / request count), per-unit `price`, `amount`
+- **`cost-YYYY-M.csv`** — Per-model daily cost totals in USD (`model`, `cost`)
+
+The newer daily export layout is also accepted: **`amount-YYYY-MM-DD_YYYY-MM-DD.csv`** / **`cost-YYYY-MM-DD_YYYY-MM-DD.csv`**, which carry `start_time_iso` / `end_time_iso` columns and no `utc_date` — the dashboard derives the date from `start_time_iso`. Its amount columns are `model`, `api_key_name`, `type`, `price`, `amount`; its cost columns are `model`, `wallet_type`, `cost`, `currency`.
 
 The dashboard parses both, cross-references pricing, and presents the complete picture.
 
